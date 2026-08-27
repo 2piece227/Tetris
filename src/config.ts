@@ -14,21 +14,9 @@ export const WELL = { w: 4, d: 4, h: 18 } as const;
 export const CELL = 0.075;
 
 // Gravity: how long (ms) between automatic one-step drops, per level.
-//
-// Tuned against a ~3 minute festival round. The worst case is a player who
-// never touches hard drop, and at the old 2000ms that measured 16-19 minutes:
-// fall time is proportional to how empty the well is, so an 18-layer well hands
-// out an enormous free ride at the top of every piece.
-//
-// MIN_DROP_MS is the real speed control, not BASE_DROP_MS. It floors the
-// interval, so while it sat at 460 no base below 460 changed anything at all —
-// 400 and 300 produced identical pacing. The two have to come down together.
-//
-// At 500/200 that worst case measures 4.1 minutes for a beginner and 4.5 for a
-// competent player, which lands near 3 minutes once real players use hard drop
-// at all, and rounds still end by topping out rather than on a clock.
-export const BASE_DROP_MS = 500;
-export const MIN_DROP_MS = 200;
+// 30% slower than the previous pass across the board.
+export const BASE_DROP_MS = 2000;
+export const MIN_DROP_MS = 460;
 export const SOFT_DROP_MS = 100; // while soft-drop is held
 export const LEVEL_SPEEDUP_MS = 155; // shaved off BASE_DROP_MS per level
 
