@@ -85,7 +85,8 @@ const SQUEEZE = "xr-standard-squeeze";
 export async function setupXR(
   game: Game,
   renderer: Renderer,
-  sfx: Sfx
+  sfx: Sfx,
+  onRestart: () => void
 ): Promise<WebXRDefaultExperience | null> {
   let xr: WebXRDefaultExperience;
   try {
@@ -182,6 +183,16 @@ export async function setupXR(
         });
         // left X → re-plant the tank in front of me
         onPress(mc.getComponent("x-button"), recenter);
+        // left Y → start again, but only from the game-over panel.
+        //
+        // Y sits directly above X on the same controller, and X is the button
+        // players are told to press when the tank ends up somewhere awkward.
+        // Left live, a thumb landing one button high would wipe a round that
+        // was still being played. Gated, it does exactly what the on-screen
+        // button does — which is the only place a restart is offered anyway.
+        onPress(mc.getComponent("y-button"), () => {
+          if (game.gameOver) onRestart();
+        });
       }
     });
   });

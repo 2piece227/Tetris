@@ -8,7 +8,8 @@ import { RotateIntent, resolveRotation } from "../game/viewRotation";
 export function attachKeyboard(
   game: Game,
   sfx: Sfx,
-  relativeYaw: () => number
+  relativeYaw: () => number,
+  onRestart: () => void
 ): void {
   // Rotations are asked for in the player's own frame and resolved against
   // where they are looking from, so the same key always produces the same
@@ -34,6 +35,8 @@ export function attachKeyboard(
       case "z": turn("roll", 1); break;
       case "x": turn("roll", -1); break;
       case " ": if (!e.repeat) game.hardDrop(); break;
+      // Mirrors the headset's Y button, and gated the same way.
+      case "y": if (game.gameOver) onRestart(); break;
       case "shift": game.softDropping = true; break;
       default: used = false;
     }

@@ -222,6 +222,7 @@ export class VrUi {
       ["오른쪽 방아쇠", "쾅 떨구기"],
       ["왼쪽 손잡이", "천천히"],
       ["왼쪽 X", "위치 맞춤"],
+      ["왼쪽 Y", "다시 시작"],
     ];
 
     for (const [key, label] of rows) {

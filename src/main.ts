@@ -39,8 +39,8 @@ game.onGameOver = () => {
   ui.showGameOver(game);
 };
 
-attachKeyboard(game, sfx, () => renderer.viewRelativeYaw());
-void setupXR(game, renderer, sfx);
+attachKeyboard(game, sfx, () => renderer.viewRelativeYaw(), restart);
+void setupXR(game, renderer, sfx, restart);
 
 // Gravity and the round clock, both driven by Babylon's render clock.
 renderer.scene.onBeforeRenderObservable.add(() => {
