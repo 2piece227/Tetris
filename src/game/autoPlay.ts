@@ -65,7 +65,9 @@ export class AutoPlayer {
   private nextStepAt = 0;
 
   /** Milliseconds between one action and the next. */
-  private readonly BEAT_MS = 130;
+  private readonly BEAT_MS = 240;
+  /** Longer pause after a piece lands, so the reel has a beat to it. */
+  private readonly SETTLE_MS = 750;
 
   reset(): void {
     this.plan = [];
@@ -102,6 +104,10 @@ export class AutoPlayer {
       game.tryMove(step.dx, step.dz);
     } else {
       game.hardDrop();
+      // Hold on the landing before starting the next piece. Without it the
+      // pieces run into one another and the whole thing reads as a machine
+      // dumping blocks rather than as somebody playing.
+      this.nextStepAt = now + this.SETTLE_MS;
     }
   }
 
