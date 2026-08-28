@@ -61,6 +61,19 @@ export class Sfx {
     });
   }
 
+  /**
+   * Play the loop at `rate` times its normal speed.
+   *
+   * preservesPitch is turned off on purpose: time-stretching at the same pitch
+   * sounds like an artefact, where letting the pitch rise with the tempo is the
+   * sped-up-tape effect players already read as "you are running out of time".
+   */
+  setBgmRate(rate: number): void {
+    const el = this.bgm as HTMLAudioElement & { preservesPitch?: boolean };
+    el.preservesPitch = false;
+    if (this.bgm.playbackRate !== rate) this.bgm.playbackRate = rate;
+  }
+
   /** Stop the music. Not used during play — the loop is meant to run forever. */
   stopBgm(): void {
     this.bgm.pause();

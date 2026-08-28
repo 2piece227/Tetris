@@ -1,5 +1,8 @@
 import {
   BASE_DROP_MS,
+  ROUND_TIME_MS,
+  TIME_BONUS_PER_LAYER_MS,
+  TIME_WARNING_MS,
   LAYERS_PER_LEVEL,
   LAYER_SCORE,
   LEVEL_SPEEDUP_MS,
@@ -44,6 +47,27 @@ export class Game {
   layers = 0;
   gameOver = false;
   softDropping = false;
+
+  /** Milliseconds left in the round. The clock, not the well, usually ends it. */
+  timeLeftMs = ROUND_TIME_MS;
+  /** Why the round ended, for the game-over panel. */
+  endedBy: "topout" | "timeout" | null = null;
+
+  /**
+   * The round is nearly out of time.
+   *
+   * The readout, the room colour and the music tempo all key off this one
+   * getter. Deriving the same condition separately in each let them disagree
+   * at the boundary — the clock turned red a frame before the room did.
+   */
+  get timeCritical(): boolean {
+    return this.timeLeftMs <= TIME_WARNING_MS;
+  }
+
+  /** 0 the moment the warning starts, 1 when the clock is out. */
+  get timePressure(): number {
+    return Math.max(0, Math.min(1, 1 - this.timeLeftMs / TIME_WARNING_MS));
+  }
 
   private dropTimer = 0;
 
@@ -97,6 +121,7 @@ export class Game {
     };
     this.dropTimer = 0;
     if (!this.grid.canPlace(this.cells, this.pos)) {
+      this.endedBy = "topout";
       this.gameOver = true;
       this.onGameOver?.();
     }
@@ -157,6 +182,7 @@ export class Game {
       this.score += (LAYER_SCORE[Math.min(n, LAYER_SCORE.length - 1)] ?? 0) * this.level;
       this.layers += n;
       this.level = 1 + Math.floor(this.layers / LAYERS_PER_LEVEL);
+      this.timeLeftMs += n * TIME_BONUS_PER_LAYER_MS;
       this.onClear?.(n);
     }
     this.spawn();
@@ -171,6 +197,17 @@ export class Game {
 
   tick(dtMs: number): void {
     if (this.gameOver) return;
+
+    this.timeLeftMs -= dtMs;
+    if (this.timeLeftMs <= 0) {
+      this.timeLeftMs = 0;
+      this.endedBy = "timeout";
+      this.gameOver = true;
+      this.onGameOver?.();
+      this.onChange?.();
+      return;
+    }
+
     this.dropTimer += dtMs;
     const interval = this.softDropping ? SOFT_DROP_MS : this.dropInterval();
     if (this.dropTimer >= interval) {
@@ -186,6 +223,8 @@ export class Game {
     this.level = 1;
     this.layers = 0;
     this.gameOver = false;
+    this.endedBy = null;
+    this.timeLeftMs = ROUND_TIME_MS;
     this.softDropping = false;
     this.bag.reset();
     this.next = this.bag.take(0);

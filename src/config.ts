@@ -20,6 +20,20 @@ export const MIN_DROP_MS = 460;
 export const SOFT_DROP_MS = 100; // while soft-drop is held
 export const LEVEL_SPEEDUP_MS = 155; // shaved off BASE_DROP_MS per level
 
+// ─── Round timer ────────────────────────────────────────────────────────────
+// The well is deep and gravity is gentle, so a player who simply never presses
+// drop was measured taking sixteen minutes. Speeding gravity up to fix that
+// made the game unreadable, so the clock does the bounding instead and the
+// pace stays where it is legible.
+export const ROUND_TIME_MS = 180_000;
+
+// Clearing a layer buys more of the round back. Uncapped: clears are rare
+// enough here that nobody is going to farm it into a long game.
+export const TIME_BONUS_PER_LAYER_MS = 10_000;
+
+// Below this the room turns red and the music doubles up.
+export const TIME_WARNING_MS = 60_000;
+
 // How many cleared layers to advance a level.
 export const LAYERS_PER_LEVEL = 5;
 

@@ -350,6 +350,28 @@ export class Renderer {
     return Math.atan2(f.x, f.z) - this.wellRoot.rotation.y;
   }
 
+  /**
+   * Push the room toward red once the clock is nearly out.
+   *
+   * `critical` is passed in rather than inferred from `pressure`, because
+   * pressure is legitimately 0 on the very frame the warning begins — reading
+   * that as "not warning yet" left the room blue while the readout was already
+   * red. The blend starts part-way up so crossing the mark is an event rather
+   * than a fade nobody notices, then deepens to the end.
+   */
+  setUrgency(critical: boolean, pressure: number): void {
+    const u = Math.max(0, Math.min(1, pressure));
+    const calm = { r: 0.015, g: 0.02, b: 0.038 };
+    const alarm = { r: 0.20, g: 0.012, b: 0.02 };
+    const k = critical ? 0.45 + 0.55 * u : 0;
+    this.scene.clearColor.set(
+      calm.r + (alarm.r - calm.r) * k,
+      calm.g + (alarm.g - calm.g) * k,
+      calm.b + (alarm.b - calm.b) * k,
+      1
+    );
+  }
+
   placeForDesktop(): void {
     this.wellRoot.position.set(0, WELL_ANCHOR.y, 0);
     this.wellRoot.rotation.y = 0;

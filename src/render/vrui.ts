@@ -78,6 +78,8 @@ function text(
 }
 
 export class VrUi {
+  private readonly clock: TextBlock;
+  private readonly clockPanel: Panel;
   private readonly scoreValue: TextBlock;
   private readonly scoreSub: TextBlock;
   private readonly tierLabel: TextBlock;
@@ -86,6 +88,33 @@ export class VrUi {
 
   constructor(scene: Scene, parent: TransformNode, onRestart: () => void) {
     this.buildHelp(scene, parent);
+
+    // ── Clock, mirroring the score across the tank ─────────────────────────
+    // The round is decided by this far more often than by topping out, so it
+    // is the largest thing on either panel and sits at eye level where a
+    // glance up from the well lands.
+    this.clockPanel = makePanel(
+      scene,
+      parent,
+      "uiClock",
+      0.24,
+      0.12,
+      new Vector3(-0.36, 1.2, -0.08),
+      -YAW_IN
+    );
+    backdrop(this.clockPanel.adt);
+
+    const clockStack = new StackPanel();
+    clockStack.paddingTop = "14px";
+    this.clockPanel.adt.addControl(clockStack);
+
+    const clockLabel = text("남은 시간", 42, "#8d99c8");
+    clockLabel.height = "56px";
+    clockStack.addControl(clockLabel);
+
+    this.clock = text("3:00", 150, "#eef2ff", { bold: true });
+    this.clock.height = "170px";
+    clockStack.addControl(this.clock);
 
     // ── Score, beside the tank at eye level ────────────────────────────────
     // It used to sit above the rim, which worked at 8 layers deep. At 18 the
@@ -226,10 +255,17 @@ export class VrUi {
     this.scoreValue.text = String(game.score);
     this.scoreSub.text = `레이어 ${game.layers} · 레벨 ${game.level}`;
     this.tierLabel.text = game.tierLabel;
+
+    // Round up, so the clock only shows 0:00 when the round is actually over.
+    const total = Math.ceil(game.timeLeftMs / 1000);
+    const mins = Math.floor(total / 60);
+    this.clock.text = `${mins}:${String(total % 60).padStart(2, "0")}`;
+    this.clock.color = game.timeCritical ? "#ff5a5a" : "#eef2ff";
   }
 
   showGameOver(game: Game): void {
-    this.gameOverScore.text = `점수 ${game.score}`;
+    this.gameOverScore.text =
+      (game.endedBy === "timeout" ? "시간 종료 · " : "") + `점수 ${game.score}`;
     this.gameOver.plane.setEnabled(true);
   }
 

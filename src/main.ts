@@ -42,9 +42,16 @@ game.onGameOver = () => {
 attachKeyboard(game, sfx, () => renderer.viewRelativeYaw());
 void setupXR(game, renderer, sfx);
 
-// Gravity loop, driven by Babylon's render clock.
+// Gravity and the round clock, both driven by Babylon's render clock.
 renderer.scene.onBeforeRenderObservable.add(() => {
   game.tick(renderer.engine.getDeltaTime());
+
+  // Under a minute the room reddens and the music doubles up. Driven every
+  // frame off the current state rather than fired once at the threshold, so it
+  // is right after a restart and after a clear buys time back over the line —
+  // the room calms down again if you earn your way out of trouble.
+  renderer.setUrgency(game.timeCritical, game.timePressure);
+  sfx.setBgmRate(game.timeCritical ? 2 : 1);
 });
 
 // First paint.
