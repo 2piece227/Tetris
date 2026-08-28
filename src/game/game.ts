@@ -55,8 +55,8 @@ export class Game {
   onGameOver: (() => void) | null = null;
   /** Fired on a successful sideways move (for sound). */
   onMove: (() => void) | null = null;
-  /** Fired on a successful rotation (for sound). */
-  onRotate: (() => void) | null = null;
+  /** Fired on a successful rotation, with the turn that was applied. */
+  onRotate: ((axis: Axis, dir: 1 | -1) => void) | null = null;
   /** Fired when a piece settles into the stack (for sound). */
   onLock: (() => void) | null = null;
 
@@ -123,7 +123,7 @@ export class Game {
       if (this.grid.canPlace(rotated, np)) {
         this.cells = rotated;
         this.pos = np;
-        this.onRotate?.();
+        this.onRotate?.(axis, dir);
         this.onChange?.();
         return true;
       }

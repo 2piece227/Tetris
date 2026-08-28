@@ -7,6 +7,7 @@ import {
 import { HARD_DROP_COOLDOWN_MS } from "../config";
 import type { Sfx } from "../audio/sfx";
 import type { Game } from "../game/game";
+import { RotateIntent, resolveRotation } from "../game/viewRotation";
 import type { Renderer } from "../render/renderer";
 
 // Turns an analog stick value into discrete steps with auto-repeat, so holding
@@ -125,8 +126,15 @@ export async function setupXR(
   // cross the well. The right stick rotates and fires once per deflection.
   const moveX = new Stepper((d) => game.tryMove(d, 0));
   const moveZ = new Stepper((d) => game.tryMove(0, d));
-  const yaw = new Flick((d) => game.tryRotate("y", d));
-  const pitch = new Flick((d) => game.tryRotate("x", d));
+  // Asked for in the player's own frame — tip it away, spin it, keel it over —
+  // and resolved against where they are standing. Turning on the spot no longer
+  // silently changes what a control does.
+  const turn = (intent: RotateIntent, d: 1 | -1): void => {
+    const r = resolveRotation(intent, d, renderer.viewRelativeYaw());
+    game.tryRotate(r.axis, r.dir);
+  };
+  const yaw = new Flick((d) => turn("spin", d));
+  const pitch = new Flick((d) => turn("tip", d));
 
   const leftStick = { x: 0, y: 0 };
   const rightStick = { x: 0, y: 0 };
@@ -154,8 +162,8 @@ export async function setupXR(
           game.hardDrop();
         });
         // A / B → rotate around Z
-        onPress(mc.getComponent("a-button"), () => game.tryRotate("z", 1));
-        onPress(mc.getComponent("b-button"), () => game.tryRotate("z", -1));
+        onPress(mc.getComponent("a-button"), () => turn("roll", 1));
+        onPress(mc.getComponent("b-button"), () => turn("roll", -1));
       } else {
         // left squeeze / trigger → soft drop while either is held. Tracked
         // separately because a single shared flag lets releasing one component

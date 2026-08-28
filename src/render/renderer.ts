@@ -1,5 +1,7 @@
 import {
   ArcRotateCamera,
+  Matrix,
+  Quaternion,
   Color3,
   Color4,
   DirectionalLight,
@@ -14,9 +16,21 @@ import {
 } from "@babylonjs/core";
 import { CELL, WELL, WELL_ANCHOR, XR_DISTANCE } from "../config";
 import type { Game } from "../game/game";
+import { Axis, rotate } from "../game/vec";
 import { TANK_H, buildPedestal, buildRoom, buildTank } from "./environment";
 
 const { w, d } = WELL;
+
+/**
+ * How long a quarter turn takes on screen.
+ *
+ * The logic rotates instantly; this is only the picture catching up. Without it
+ * the piece teleports between orientations, and from a fixed viewpoint there is
+ * no way to tell a turn about one axis from a turn about another — you are left
+ * inferring what happened from the result. Long enough to read, short enough
+ * that it never gates the next input.
+ */
+const ROTATE_ANIM_MS = 130;
 
 // Where the next-piece preview perches, in wellRoot-local space. Beside the
 // tank rather than above it: at 18 layers deep the rim is already near eye
@@ -41,7 +55,12 @@ export class Renderer {
   readonly camera: ArcRotateCamera;
   readonly wellRoot: TransformNode;
 
+  /** The live piece hangs off this so a rotation can actually turn it. */
+  readonly pieceRoot: TransformNode;
+  private rotAnim: { from: Quaternion; startedAt: number } | null = null;
+
   private readonly solidPool: Mesh[] = [];
+  private readonly piecePool: Mesh[] = [];
   private readonly ghostPool: Mesh[] = [];
   private readonly guidePool: Mesh[] = [];
   private readonly nextPool: Mesh[] = [];
@@ -59,6 +78,9 @@ export class Renderer {
     this.scene.clearColor = new Color4(0.015, 0.02, 0.038, 1);
 
     this.wellRoot = new TransformNode("wellRoot", this.scene);
+    this.pieceRoot = new TransformNode("pieceRoot", this.scene);
+    this.pieceRoot.parent = this.wellRoot;
+    this.pieceRoot.rotationQuaternion = Quaternion.Identity();
 
     this.camera = new ArcRotateCamera(
       "cam",
@@ -120,6 +142,8 @@ export class Renderer {
     this.buildNextPlinth();
     this.placeForDesktop();
 
+    this.scene.onBeforeRenderObservable.add(() => this.stepRotation());
+
     window.addEventListener("resize", () => this.engine.resize());
     this.engine.runRenderLoop(() => this.scene.render());
   }
@@ -160,10 +184,10 @@ export class Renderer {
     return m;
   }
 
-  private borrow(pool: Mesh[], master: Mesh, i: number): Mesh {
+  private borrow(pool: Mesh[], master: Mesh, i: number, parent?: TransformNode): Mesh {
     let mesh = pool[i];
     if (!mesh) {
-      mesh = master.clone(master.name + "_" + pool.length, this.wellRoot)!;
+      mesh = master.clone(master.name + "_" + pool.length, parent ?? this.wellRoot)!;
       mesh.isVisible = true;
       pool.push(mesh);
     }
@@ -184,10 +208,22 @@ export class Renderer {
     };
 
     game.grid.forEachFilled(put);
-    if (!game.gameOver)
-      for (const c of game.cells)
-        put(game.pos.x + c.x, game.pos.y + c.y, game.pos.z + c.z, game.current.color);
     this.hideFrom(this.solidPool, s);
+
+    // The live piece is drawn separately, as offsets from its own pivot, so
+    // pieceRoot can spin it in place without disturbing the settled stack.
+    let live = 0;
+    if (!game.gameOver) {
+      this.pieceRoot.position.copyFrom(
+        cellToLocal(game.pos.x, game.pos.y, game.pos.z)
+      );
+      for (const c of game.cells) {
+        const mesh = this.borrow(this.piecePool, this.solidMaster, live++, this.pieceRoot);
+        mesh.position.set(c.x * CELL, c.y * CELL, c.z * CELL);
+        mesh.material = this.solidMat(game.current.color);
+      }
+    }
+    this.hideFrom(this.piecePool, live);
 
     let g = 0;
     let guides = 0;
@@ -246,6 +282,72 @@ export class Renderer {
       mesh.material = mat;
     }
     this.hideFrom(this.nextPool, n);
+  }
+
+  /**
+   * Begin the visual catching up to a rotation the logic has already applied.
+   *
+   * The quarter turn is derived from rotate() itself rather than written out by
+   * hand, so the picture cannot disagree with the rule it is illustrating.
+   */
+  beginRotation(axis: Axis, dir: 1 | -1): void {
+    const img = (x: number, y: number, z: number) => rotate({ x, y, z }, axis, dir);
+    const rx = img(1, 0, 0);
+    const ry = img(0, 1, 0);
+    const rz = img(0, 0, 1);
+    const applied = Quaternion.FromRotationMatrix(
+      Matrix.FromValues(
+        rx.x, rx.y, rx.z, 0,
+        ry.x, ry.y, ry.z, 0,
+        rz.x, rz.y, rz.z, 0,
+        0, 0, 0, 1
+      )
+    );
+    // Start the picture where the piece *was* and let it turn into where the
+    // logic has already put it. Composed against whatever is on screen right
+    // now, so a turn arriving mid-animation continues from there instead of
+    // snapping back to square one.
+    const current = this.pieceRoot.rotationQuaternion ?? Quaternion.Identity();
+    this.rotAnim = {
+      from: Quaternion.Inverse(applied).multiply(current),
+      startedAt: performance.now(),
+    };
+  }
+
+  /**
+   * Driven off the wall clock rather than the engine delta. getDeltaTime
+   * reports zero whenever the render loop is not genuinely running — a
+   * backgrounded tab, a stalled frame — and an animation measured that way
+   * never advances, leaving the piece drawn in the orientation it has already
+   * left. The clock cannot stall.
+   */
+  private stepRotation(): void {
+    const a = this.rotAnim;
+    if (!a) return;
+    const t = Math.min(1, (performance.now() - a.startedAt) / ROTATE_ANIM_MS);
+    const eased = 1 - (1 - t) * (1 - t); // ease out; the turn settles rather than stops dead
+    Quaternion.SlerpToRef(
+      a.from,
+      Quaternion.Identity(),
+      eased,
+      this.pieceRoot.rotationQuaternion!
+    );
+    if (t >= 1) {
+      this.pieceRoot.rotationQuaternion!.copyFrom(Quaternion.Identity());
+      this.rotAnim = null;
+    }
+  }
+
+  /**
+   * Where the viewer is standing, as a yaw relative to the well's own facing.
+   * Reads the active camera, so it answers for the headset in VR and for the
+   * orbit camera on the desktop without either caller knowing the difference.
+   */
+  viewRelativeYaw(): number {
+    const cam = this.scene.activeCamera;
+    if (!cam) return 0;
+    const f = cam.getForwardRay().direction;
+    return Math.atan2(f.x, f.z) - this.wellRoot.rotation.y;
   }
 
   placeForDesktop(): void {

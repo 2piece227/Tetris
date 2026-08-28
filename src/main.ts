@@ -28,7 +28,10 @@ game.onChange = () => {
   ui.update(game);
 };
 game.onMove = () => sfx.move();
-game.onRotate = () => sfx.rotate();
+game.onRotate = (axis, dir) => {
+  sfx.rotate();
+  renderer.beginRotation(axis, dir);
+};
 game.onLock = () => sfx.lock();
 game.onClear = (n) => sfx.clear(n);
 game.onGameOver = () => {
@@ -36,7 +39,7 @@ game.onGameOver = () => {
   ui.showGameOver(game);
 };
 
-attachKeyboard(game, sfx);
+attachKeyboard(game, sfx, () => renderer.viewRelativeYaw());
 void setupXR(game, renderer, sfx);
 
 // Gravity loop, driven by Babylon's render clock.
