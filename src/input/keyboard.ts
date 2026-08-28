@@ -9,7 +9,8 @@ export function attachKeyboard(
   game: Game,
   sfx: Sfx,
   relativeYaw: () => number,
-  onRestart: () => void
+  onRestart: () => void,
+  onInput: () => void
 ): void {
   // Rotations are asked for in the player's own frame and resolved against
   // where they are looking from, so the same key always produces the same
@@ -21,6 +22,7 @@ export function attachKeyboard(
 
   window.addEventListener("keydown", (e) => {
     sfx.unlock(); // first keypress is the user gesture WebAudio waits for
+    onInput(); // somebody is here, so the attract demo should stand down
     const k = e.key.toLowerCase();
     let used = true;
     switch (k) {

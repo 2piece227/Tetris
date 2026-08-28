@@ -97,7 +97,8 @@ export async function setupXR(
   game: Game,
   renderer: Renderer,
   sfx: Sfx,
-  onRestart: () => void
+  onRestart: () => void,
+  onInput: () => void
 ): Promise<WebXRDefaultExperience | null> {
   let xr: WebXRDefaultExperience;
   try {
@@ -127,6 +128,7 @@ export async function setupXR(
   xr.baseExperience.onStateChangedObservable.add((state) => {
     if (state === WebXRState.IN_XR) {
       sfx.unlock(); // entering VR is the user gesture WebAudio needs
+      onInput(); // someone has put the headset on
       // The head pose is not usable on the session's first frame.
       renderer.scene.onAfterRenderObservable.addOnce(() => recenter());
     } else if (state === WebXRState.NOT_IN_XR) {
@@ -168,8 +170,12 @@ export async function setupXR(
   const onFacePress = (
     mc: { getComponent: (id: string) => WebXRControllerComponent | null; gamepadObject?: unknown },
     id: string,
-    action: () => void
+    rawAction: () => void
   ): void => {
+    const action = (): void => {
+      onInput();
+      rawAction();
+    };
     const named = mc.getComponent(id);
     if (named) {
       onPress(named, action);
@@ -203,6 +209,7 @@ export async function setupXR(
         // trigger → hard drop, once per pull and no faster than the cooldown
         let lastDrop = -Infinity;
         onPress(trigger, () => {
+          onInput();
           const now = performance.now();
           if (now - lastDrop < HARD_DROP_COOLDOWN_MS) return;
           lastDrop = now;
@@ -240,6 +247,12 @@ export async function setupXR(
   // Poll stick values every frame for smooth auto-repeat.
   renderer.scene.onBeforeRenderObservable.add(() => {
     for (const poll of buttonPollers) poll();
+
+    // A deflected stick means a hand on the controller. Thresholded rather than
+    // taken from the axis event, so a controller resting on a table and
+    // drifting a little does not read as somebody playing.
+    if (Math.hypot(leftStick.x, leftStick.y) > 0.35 ||
+        Math.hypot(rightStick.x, rightStick.y) > 0.35) onInput();
 
     const dt = renderer.engine.getDeltaTime();
     moveX.update(leftStick.x, dt);

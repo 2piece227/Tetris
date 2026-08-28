@@ -78,6 +78,7 @@ function text(
 }
 
 export class VrUi {
+  private readonly attract: Panel;
   private readonly clock: TextBlock;
   private readonly clockPanel: Panel;
   private readonly scoreValue: TextBlock;
@@ -88,6 +89,34 @@ export class VrUi {
 
   constructor(scene: Scene, parent: TransformNode, onRestart: () => void) {
     this.buildHelp(scene, parent);
+
+    // ── Attract banner ────────────────────────────────────────────────────
+    // Faces the room in front of the tank, where the mirrored view puts it in
+    // the middle of the picture for the queue rather than off to one side.
+    this.attract = makePanel(
+      scene,
+      parent,
+      "uiAttract",
+      0.5,
+      0.16,
+      new Vector3(0, 1.42, -0.24),
+      0
+    );
+    backdrop(this.attract.adt, 0.88);
+
+    const attractStack = new StackPanel();
+    attractStack.paddingTop = "18px";
+    this.attract.adt.addControl(attractStack);
+
+    const demoTitle = text("시연 중", 96, "#7cf0c0", { bold: true });
+    demoTitle.height = "120px";
+    attractStack.addControl(demoTitle);
+
+    const demoHint = text("아무 버튼이나 누르면 시작", 52, "#9aa5d4");
+    demoHint.height = "72px";
+    attractStack.addControl(demoHint);
+
+    this.showAttract(false);
 
     // ── Clock, mirroring the score across the tank ─────────────────────────
     // The round is decided by this far more often than by topping out, so it
@@ -250,6 +279,11 @@ export class VrUi {
 
       stack.addControl(row);
     }
+  }
+
+  /** The demo banner is up only while nobody is playing. */
+  showAttract(on: boolean): void {
+    this.attract.plane.setEnabled(on);
   }
 
   update(game: Game): void {

@@ -71,6 +71,7 @@ export class Renderer {
   private readonly nextMaster: Mesh;
 
   private readonly matByColor = new Map<number, StandardMaterial>();
+  private demo = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.engine = new Engine(canvas, true, { stencil: true, antialias: true });
@@ -179,9 +180,24 @@ export class Renderer {
       m.diffuseColor = c;
       m.emissiveColor = c.scale(0.35);
       m.specularColor = new Color3(0.25, 0.25, 0.3);
+      this.applyDemoLook(m);
       this.matByColor.set(color, m);
     }
     return m;
+  }
+
+  private applyDemoLook(m: StandardMaterial): void {
+    // Ghosted while the machine is playing itself, so anyone glancing at the
+    // mirror can see at once that this is a demo and not somebody's round.
+    m.alpha = this.demo ? 0.42 : 1;
+    m.disableDepthWrite = this.demo;
+  }
+
+  /** Switch the blocks between a live round and the attract demo. */
+  setDemoLook(on: boolean): void {
+    if (this.demo === on) return;
+    this.demo = on;
+    for (const m of this.matByColor.values()) this.applyDemoLook(m);
   }
 
   private borrow(pool: Mesh[], master: Mesh, i: number, parent?: TransformNode): Mesh {

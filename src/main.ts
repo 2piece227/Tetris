@@ -1,4 +1,5 @@
 import { Sfx } from "./audio/sfx";
+import { AutoPlayer } from "./game/autoPlay";
 import { Game } from "./game/game";
 import { attachKeyboard } from "./input/keyboard";
 import { setupXR } from "./input/xr";
@@ -11,7 +12,40 @@ const renderer = new Renderer(canvas);
 const game = new Game();
 const sfx = new Sfx();
 
+const auto = new AutoPlayer();
+
+/**
+ * How long the machine waits before playing itself.
+ *
+ * The headset mirrors to a screen for whoever is queuing, and between players
+ * that screen was showing a finished board and nothing else. Long enough that
+ * it never starts up on someone who is just thinking about their next move.
+ */
+const IDLE_BEFORE_DEMO_MS = 20_000;
+let lastInputAt = performance.now();
+let demo = false;
+
+const setDemo = (on: boolean): void => {
+  if (demo === on) return;
+  demo = on;
+  renderer.setDemoLook(on);
+  ui.showAttract(on);
+  auto.reset();
+  game.reset();
+  ui.hideGameOver();
+  renderer.redraw(game);
+  ui.update(game);
+};
+
+/** Any input at all counts as somebody being there. */
+const noteInput = (): void => {
+  lastInputAt = performance.now();
+  // Walking in on a demo starts a real round rather than inheriting its board.
+  if (demo) setDemo(false);
+};
+
 const restart = (): void => {
+  noteInput();
   game.reset();
   ui.hideGameOver();
   renderer.redraw(game);
@@ -36,11 +70,19 @@ game.onLock = () => sfx.lock();
 game.onClear = (n) => sfx.clear(n);
 game.onGameOver = () => {
   sfx.gameOver();
+  // The demo restarts itself instead of sitting on a game-over panel.
+  if (demo) {
+    auto.reset();
+    game.reset();
+    renderer.redraw(game);
+    ui.update(game);
+    return;
+  }
   ui.showGameOver(game);
 };
 
-attachKeyboard(game, sfx, () => renderer.viewRelativeYaw(), restart);
-void setupXR(game, renderer, sfx, restart);
+attachKeyboard(game, sfx, () => renderer.viewRelativeYaw(), restart, noteInput);
+void setupXR(game, renderer, sfx, restart, noteInput);
 
 // Gravity and the round clock, both driven by Babylon's render clock.
 renderer.scene.onBeforeRenderObservable.add(() => {
@@ -52,6 +94,9 @@ renderer.scene.onBeforeRenderObservable.add(() => {
   // the room calms down again if you earn your way out of trouble.
   renderer.setUrgency(game.timeCritical, game.timePressure);
   sfx.setBgmRate(game.timeCritical ? 2 : 1);
+
+  if (demo) auto.update(game);
+  else if (performance.now() - lastInputAt > IDLE_BEFORE_DEMO_MS) setDemo(true);
 });
 
 // First paint.
