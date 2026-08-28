@@ -35,8 +35,8 @@ export function attachKeyboard(
       case "z": turn("roll", 1); break;
       case "x": turn("roll", -1); break;
       case " ": if (!e.repeat) game.hardDrop(); break;
-      // Mirrors the headset's Y button, and gated the same way.
-      case "y": if (game.gameOver) onRestart(); break;
+      // Mirrors the headset's Y button: a fresh round at any point.
+      case "y": onRestart(); break;
       case "shift": game.softDropping = true; break;
       default: used = false;
     }

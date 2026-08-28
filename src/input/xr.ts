@@ -78,6 +78,17 @@ export class Flick {
   }
 }
 
+/**
+ * Standard gamepad indices for the face buttons, per the xr-standard mapping.
+ * Left: X is 4, Y is 5. Right: A is 4, B is 5.
+ */
+const FACE_BUTTON_INDEX: Record<string, number> = {
+  "x-button": 4,
+  "a-button": 4,
+  "y-button": 5,
+  "b-button": 5,
+};
+
 const THUMBSTICK = "xr-standard-thumbstick";
 const TRIGGER = "xr-standard-trigger";
 const SQUEEZE = "xr-standard-squeeze";
@@ -140,6 +151,41 @@ export async function setupXR(
   const leftStick = { x: 0, y: 0 };
   const rightStick = { x: 0, y: 0 };
 
+  /** Raw-gamepad watchers, ticked with the sticks below. */
+  const buttonPollers: (() => void)[] = [];
+
+  /**
+   * Fire `action` once per press of a face button.
+   *
+   * Prefers the named component, but Babylon only knows those names if it
+   * fetched the controller profile from an external CDN at runtime. When that
+   * fetch fails it falls back to a generic controller carrying nothing but a
+   * trigger, and every face button silently stops responding — no error, the
+   * binding just never fires. Polling the raw gamepad index covers that, and
+   * only runs when the named component is genuinely missing, so a single press
+   * can never register twice.
+   */
+  const onFacePress = (
+    mc: { getComponent: (id: string) => WebXRControllerComponent | null; gamepadObject?: unknown },
+    id: string,
+    action: () => void
+  ): void => {
+    const named = mc.getComponent(id);
+    if (named) {
+      onPress(named, action);
+      return;
+    }
+    const index = FACE_BUTTON_INDEX[id];
+    const pad = mc.gamepadObject as { buttons?: { pressed: boolean }[] } | undefined;
+    if (index === undefined || !pad?.buttons) return;
+    let wasDown = false;
+    buttonPollers.push(() => {
+      const down = pad.buttons?.[index]?.pressed === true;
+      if (down && !wasDown) action();
+      wasDown = down;
+    });
+  };
+
   xr.input.onControllerAddedObservable.add((controller: WebXRInputSource) => {
     controller.onMotionControllerInitObservable.add((mc) => {
       const hand = mc.handedness;
@@ -163,8 +209,8 @@ export async function setupXR(
           game.hardDrop();
         });
         // A / B → rotate around Z
-        onPress(mc.getComponent("a-button"), () => turn("roll", 1));
-        onPress(mc.getComponent("b-button"), () => turn("roll", -1));
+        onFacePress(mc, "a-button", () => turn("roll", 1));
+        onFacePress(mc, "b-button", () => turn("roll", -1));
       } else {
         // left squeeze / trigger → soft drop while either is held. Tracked
         // separately because a single shared flag lets releasing one component
@@ -182,23 +228,19 @@ export async function setupXR(
           apply();
         });
         // left X → re-plant the tank in front of me
-        onPress(mc.getComponent("x-button"), recenter);
-        // left Y → start again, but only from the game-over panel.
-        //
-        // Y sits directly above X on the same controller, and X is the button
-        // players are told to press when the tank ends up somewhere awkward.
-        // Left live, a thumb landing one button high would wipe a round that
-        // was still being played. Gated, it does exactly what the on-screen
-        // button does — which is the only place a restart is offered anyway.
-        onPress(mc.getComponent("y-button"), () => {
-          if (game.gameOver) onRestart();
-        });
+        onFacePress(mc, "x-button", recenter);
+        // left Y → start a fresh round, at any point. Pointing the ray at the
+        // panel button is fiddly with a queue behind you, and abandoning a
+        // round that is going badly is worth a button of its own.
+        onFacePress(mc, "y-button", onRestart);
       }
     });
   });
 
   // Poll stick values every frame for smooth auto-repeat.
   renderer.scene.onBeforeRenderObservable.add(() => {
+    for (const poll of buttonPollers) poll();
+
     const dt = renderer.engine.getDeltaTime();
     moveX.update(leftStick.x, dt);
     moveZ.update(-leftStick.y, dt); // stick up is −y; away from the player is +z
