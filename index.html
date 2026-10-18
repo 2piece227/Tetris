@@ -5,68 +5,179 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>블럭아웃 · 3D 테트리스</title>
     <style>
-      .modes {
-        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px;
-        width: 100%; max-width: 1040px;
-      }
-      .mode {
-        display: flex; flex-direction: column; gap: 12px; padding: 28px 26px 26px;
-        background: var(--panel); border: 2px solid var(--line); border-radius: 18px;
-        transition: border-color 0.12s, background 0.12s, transform 0.12s;
-      }
-      .mode:hover, .mode:focus-visible {
-        border-color: var(--accent); background: var(--panel-hi); outline: none; transform: translateY(-2px);
-      }
-      .mode .step { color: var(--faint); font-size: 13px; font-weight: 700; letter-spacing: 1px; }
-      .mode h2 { font-size: 26px; font-weight: 800; }
-      .mode p { color: var(--muted); font-size: 15px; line-height: 1.6; flex: 1; }
-      .mode .go {
-        align-self: flex-start; margin-top: 6px; font-size: 15px; font-weight: 700;
-        color: var(--accent-ink); background: var(--accent); padding: 10px 18px; border-radius: 10px;
-      }
-      .mode kbd {
-        font-family: inherit; font-size: 12px; color: var(--faint);
-        border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 6px;
-      }
-      .note { color: var(--faint); font-size: 13px; margin-top: 32px; text-align: center; }
+      html, body { height: 100%; overflow: hidden; }
+      body.menu-page { display: block; padding: 0; }
 
-      /* In the headset only VR is offered, so it gets the whole row. */
-      body.headset .modes { grid-template-columns: minmax(0, 520px); justify-content: center; }
+      /* The background is a live game the machine is playing to itself, under a
+         wash that keeps the menu readable on top of it. */
+      #bg {
+        position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+        pointer-events: none; /* the menu owns the mouse; nobody orbits the reel */
+      }
+      .wash {
+        position: fixed; inset: 0; pointer-events: none;
+        background:
+          linear-gradient(90deg, rgba(5,6,10,0.88) 0%, rgba(5,6,10,0.55) 42%, rgba(5,6,10,0.05) 75%),
+          linear-gradient(0deg, rgba(5,6,10,0.6) 0%, rgba(5,6,10,0) 30%);
+      }
+
+      .screen {
+        position: relative; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 6vh 0 6vh 7vw; max-width: 760px;
+      }
+
+      .screen .title { text-align: left; margin: 0 0 5vh; }
+      .title h1 { font-size: clamp(44px, 6.5vw, 84px); font-weight: 800; letter-spacing: 6px; line-height: 1; }
+      .title p { color: var(--muted); font-size: 17px; margin-top: 14px; letter-spacing: 1px; }
+
+      .menu { display: flex; flex-direction: column; gap: 14px; width: min(560px, 100%); }
+
+      .row {
+        display: flex; align-items: center; gap: 22px; width: 100%;
+        padding: 18px 26px; text-align: left; cursor: pointer;
+        font: inherit; color: var(--text);
+        background: rgba(12,17,34,0.42);
+        border: 1px solid rgba(124,139,255,0.16); border-radius: 14px;
+        -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+        transform-origin: left center;
+        transition: transform 0.18s ease-out, background 0.18s, border-color 0.18s, opacity 0.18s;
+        opacity: 0.72;
+      }
+      .row .num { color: var(--faint); font-size: 15px; font-weight: 700; width: 26px; font-variant-numeric: tabular-nums; }
+      .row .label { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+      .row b { font-size: 24px; font-weight: 800; letter-spacing: 1px; }
+      .row small {
+        color: var(--muted); font-size: 14.5px; line-height: 1.5;
+        max-height: 0; overflow: hidden; opacity: 0;
+        transition: max-height 0.2s ease-out, opacity 0.2s, margin-top 0.2s;
+      }
+      .row .tag { color: var(--faint); font-size: 13px; font-weight: 700; letter-spacing: 1px; }
+      .row .arrow { color: var(--accent); font-size: 18px; opacity: 0; transition: opacity 0.18s; }
+
+      .row.on {
+        opacity: 1; transform: scale(1.09) translateX(6px);
+        background: rgba(18,26,56,0.8); border-color: var(--accent);
+      }
+      .row.on small { max-height: 3em; opacity: 1; margin-top: 4px; }
+      .row.on .num, .row.on .tag { color: var(--accent); }
+      .row.on .arrow { opacity: 1; }
+      .row:focus-visible { outline: none; }
+
+      .hint { color: var(--faint); font-size: 13px; margin-top: 5vh; }
+      .hint kbd {
+        font-family: inherit; font-size: 12px; color: var(--muted);
+        border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin: 0 2px;
+      }
+
+      /* In the headset only the rows it can use are offered. */
       body.headset .flat { display: none; }
 
+      /* How-to sheet */
+      .sheet {
+        position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+        background: rgba(4,6,12,0.7); padding: 16px;
+      }
+      .sheet.show { display: flex; }
+      .sheet .card {
+        width: min(720px, 100%); max-height: 100%; overflow: auto; padding: 32px 34px;
+        background: rgba(12,17,34,0.92); border: 1px solid var(--line-hi); border-radius: 18px;
+        -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      }
+      .sheet h2 { font-size: 28px; margin-bottom: 18px; }
+      .sheet h3 { font-size: 16px; color: var(--accent); margin: 20px 0 8px; }
+      .sheet p, .sheet li { color: var(--muted); font-size: 15px; line-height: 1.7; }
+      .sheet ul { padding-left: 20px; }
+      .sheet .close { margin-top: 24px; color: var(--faint); font-size: 13px; }
+
       @media (max-width: 760px) {
-        .modes { grid-template-columns: minmax(0, 1fr); }
+        .screen { padding: 6vh 16px; }
+        .wash { background: rgba(5,6,10,0.66); }
+        .row { padding: 14px 18px; gap: 14px; }
+        .row b { font-size: 20px; }
+        .row.on { transform: scale(1.04); }
+        .hint { display: none; }
       }
     </style>
   </head>
-  <body>
-    <header class="title">
-      <h1>블럭아웃</h1>
-      <p>3D 테트리스로 공간지각 연습하기</p>
-    </header>
+  <body class="menu-page">
+    <canvas id="bg"></canvas>
+    <div class="wash"></div>
 
-    <nav class="modes">
-      <a class="mode" href="./vr.html" data-key="1">
-        <span class="step">1단계 · 연습</span>
-        <h2>VR 체험하기</h2>
-        <p>헤드셋을 쓰고 수조를 직접 둘러보며 블록을 돌려 쌓아요. 끝나면 리뷰 코드가 나와요.</p>
-        <span class="go">시작<kbd class="flat">1</kbd></span>
-      </a>
-      <a class="mode flat" href="./review.html" data-key="2">
-        <span class="step">2단계 · 복기</span>
-        <h2>AI 리뷰</h2>
-        <p>VR에서 받은 4자리 코드를 입력하면 AI가 한 수씩 되짚어 줘요.</p>
-        <span class="go">코드 입력<kbd>2</kbd></span>
-      </a>
-      <a class="mode flat" href="./versus.html" data-key="3">
-        <span class="step">3단계 · 대결</span>
-        <h2>AI와 대결하기</h2>
-        <p>위에서 내려다보는 고정 시점. 보이지 않는 칸을 기억하며 AI와 1:1로 겨뤄요.</p>
-        <span class="go">대결 시작<kbd>3</kbd></span>
-      </a>
-    </nav>
+    <main class="screen">
+      <header class="title">
+        <h1>블럭아웃</h1>
+        <p>3D 테트리스로 공간지각 연습하기</p>
+      </header>
 
-    <p class="note flat">VR 체험은 헤드셋 브라우저에서 열어 주세요. 이 화면에서 열면 키보드로 미리 해볼 수 있어요.</p>
+      <nav class="menu" aria-label="모드 선택">
+        <a class="row" href="./vr.html">
+          <span class="num">01</span>
+          <span class="label">
+            <b>VR 체험하기</b>
+            <small>헤드셋을 쓰고 수조를 둘러보며 블록을 돌려 쌓아요. 끝나면 리뷰 코드가 나와요.</small>
+          </span>
+          <span class="tag">연습</span><span class="arrow">▶</span>
+        </a>
+        <a class="row flat" href="./review.html">
+          <span class="num">02</span>
+          <span class="label">
+            <b>AI 리뷰</b>
+            <small>VR에서 받은 4자리 코드를 입력하면 AI가 한 수씩 되짚어 줘요.</small>
+          </span>
+          <span class="tag">복기</span><span class="arrow">▶</span>
+        </a>
+        <a class="row flat" href="./versus.html">
+          <span class="num">03</span>
+          <span class="label">
+            <b>AI와 대결하기</b>
+            <small>위에서 내려다보는 고정 시점. 보이지 않는 칸을 기억하며 AI와 1:1로 겨뤄요.</small>
+          </span>
+          <span class="tag">대결</span><span class="arrow">▶</span>
+        </a>
+        <button class="row" type="button" data-sheet="howto">
+          <span class="num">04</span>
+          <span class="label">
+            <b>게임 방법</b>
+            <small>블록 돌리는 법과 조작키, 각 모드가 무엇을 연습하는지 알려줘요.</small>
+          </span>
+          <span class="tag">안내</span><span class="arrow">▶</span>
+        </button>
+      </nav>
+
+      <p class="hint flat"><kbd>↑</kbd><kbd>↓</kbd> 고르기 · <kbd>Enter</kbd> 시작</p>
+    </main>
+
+    <div class="sheet" id="howto" role="dialog" aria-modal="true" aria-labelledby="howtoTitle">
+      <div class="card">
+        <h2 id="howtoTitle">게임 방법</h2>
+        <p>
+          위에서 떨어지는 블록을 돌리고 옮겨서 바닥부터 쌓아요. 한 층(4×4)이 빈칸 없이 가득 차면
+          그 층이 사라져요. 블록이 꼭대기까지 쌓이면 끝나요.
+        </p>
+
+        <h3>VR 체험 — 연습</h3>
+        <ul>
+          <li>수조 주위를 직접 걸어 다니며 가려진 칸을 확인할 수 있어요.</li>
+          <li>왼쪽 스틱 이동 · 오른쪽 스틱 눕히기/돌리기 · A/B 굴리기 · 오른쪽 방아쇠 떨구기</li>
+          <li>3분 동안 진행하고, 한 층을 지울 때마다 10초가 늘어나요.</li>
+        </ul>
+
+        <h3>AI와 대결 — 고정 시점</h3>
+        <ul>
+          <li>위에서 내려다보는 시점이 고정돼 있어서, 아래층은 기억으로 판단해야 해요.</li>
+          <li>W A S D 이동 · Q E R 회전 · Z C V 반대 회전 · Space 떨구기</li>
+          <li>층을 지우면 그만큼 상대 우물 바닥에 층이 올라가요. 먼저 꼭대기에 닿는 쪽이 져요.</li>
+        </ul>
+
+        <h3>AI 리뷰</h3>
+        <ul>
+          <li>VR 체험이 끝나면 나오는 4자리 코드를 입력하면 내가 둔 수를 AI가 평가해 줘요.</li>
+        </ul>
+
+        <p class="close">Esc 또는 바깥을 누르면 닫혀요</p>
+      </div>
+    </div>
 
     <script type="module" src="/src/menu/main.ts"></script>
   </body>
