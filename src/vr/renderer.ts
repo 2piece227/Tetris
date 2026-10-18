@@ -42,9 +42,9 @@ const ROTATE_ANIM_MS = 130;
 const NEXT_AT = { x: 0.34, y: 0.72, z: -0.06 };
 
 /**
- * How settled blocks are coloured. TEMPORARY: picked with ?look=a|b|c|d so the
- * candidates can be compared on the same board, on the monitor and in the
- * headset, before one is chosen and the rest deleted.
+ * How settled blocks are coloured. b is the default; ?look=a|b|c|d switches,
+ * so the candidates can still be compared on the same board, on the monitor
+ * and in the headset, until the choice is final and the rest are deleted.
  *
  *   a — current: the piece colour, lightly self-lit
  *   b — vivid: more saturated, glossy highlight, self-light kept moderate so
@@ -60,7 +60,8 @@ const LOOKS = {
 } as const;
 type LookName = keyof typeof LOOKS;
 const lookParam = new URLSearchParams(window.location.search).get("look");
-const LOOK = LOOKS[(lookParam && lookParam in LOOKS ? lookParam : "a") as LookName];
+/** b was picked as the default for now (2026-10-20); the others stay reachable by ?look=. */
+const LOOK = LOOKS[(lookParam && lookParam in LOOKS ? lookParam : "b") as LookName];
 
 /**
  * What redraw needs from a game. A live Game satisfies it; so does a board
