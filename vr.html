@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>VR 체험 · 블럭아웃</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+      #renderCanvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+
+      /* Score and game-over now live in the 3D scene (src/render/vrui.ts) so
+         they survive entering VR, where the DOM is not presented at all.
+         What stays here is desktop-only by nature — invisible in the headset,
+         which is exactly where the keyboard legend belongs. */
+      #help {
+        position: fixed; bottom: 16px; left: 16px; color: #aeb6d8; font-size: 12.5px;
+        line-height: 1.6; background: rgba(10,14,28,0.55); padding: 12px 14px; border-radius: 10px;
+        backdrop-filter: blur(6px); pointer-events: none; user-select: none; max-width: 300px;
+      }
+      #help b { color: #dfe5ff; }
+      /* Desktop only, like the legend: the headset never shows the DOM. */
+      #back {
+        position: fixed; top: 16px; left: 16px; color: #9aa5d4; font-size: 14px; text-decoration: none;
+        padding: 8px 12px; border-radius: 8px; background: rgba(10,14,28,0.55);
+      }
+      #back:hover { color: #eef2ff; }
+      #help kbd {
+        background: #1c2340; border: 1px solid #2e3860; border-radius: 4px; padding: 1px 6px;
+        font-family: inherit; font-size: 11.5px; color: #cdd5ff;
+      }
+
+    </style>
+  </head>
+  <body>
+    <canvas id="renderCanvas"></canvas>
+
+    <a id="back" href="./">← 메뉴</a>
+
+    <div id="help">
+      <b>이동</b> <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> &nbsp; <b>낙하</b> <kbd>Space</kbd> / <kbd>Shift</kbd><br />
+      <b>눕히기</b> <kbd>Q</kbd><kbd>W</kbd> &nbsp; <b>돌리기</b> <kbd>A</kbd><kbd>S</kbd> &nbsp; <b>굴리기</b> <kbd>Z</kbd><kbd>X</kbd><br />
+      <b>처음부터</b> <kbd>Y</kbd><br />
+      <b>시점</b> 마우스 드래그 &nbsp;·&nbsp; <b>VR</b> 우하단 고글 버튼
+    </div>
+
+    <script type="module" src="/src/vr/main.ts"></script>
+  </body>
+</html>

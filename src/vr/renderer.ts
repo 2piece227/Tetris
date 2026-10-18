@@ -14,7 +14,7 @@ import {
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
-import { CELL, WELL, WELL_ANCHOR, XR_DISTANCE } from "../config";
+import { CELL, WELL, WELL_ANCHOR, XR_DISTANCE } from "./config";
 import type { Game } from "../game/game";
 import { Axis, rotate } from "../game/vec";
 import { TANK_H, buildPedestal, buildRoom, buildTank } from "./environment";

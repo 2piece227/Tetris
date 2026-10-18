@@ -5,7 +5,7 @@
  * an absolute path, because the build is served from a project subpath on
  * Pages ("/<repo>/") and a leading slash would resolve to the domain root.
  *
- * Each repository ships its own bgm.mp3 — the two games have different themes —
+ * Each mode has its own theme (bgm.mp3 for VR, bgm-versus.mp3 for versus),
  * while the stingers are shared.
  */
 
@@ -18,7 +18,6 @@ const audioUrl = (name: string): string =>
   `${import.meta.env.BASE_URL}audio/${name}`;
 
 const CLIPS = {
-  bgm: audioUrl("bgm.mp3"),
   clear1: audioUrl("clear1.mp3"),
   clear3: audioUrl("clear3.mp3"),
   gameover: audioUrl("gameover.mp3"),
@@ -33,8 +32,8 @@ export class Sfx {
   private ctx: AudioContext | null = null;
   muted = false;
 
-  constructor() {
-    this.bgm = new Audio(CLIPS.bgm);
+  constructor(bgmFile = "bgm.mp3") {
+    this.bgm = new Audio(audioUrl(bgmFile));
     this.bgm.loop = true; // 무한루프
     this.bgm.volume = BGM_VOLUME;
     this.bgm.preload = "auto";

@@ -1,15 +1,16 @@
-import { Sfx } from "./audio/sfx";
-import { AutoPlayer } from "./game/autoPlay";
-import { Game } from "./game/game";
-import { attachKeyboard } from "./input/keyboard";
-import { setupXR } from "./input/xr";
-import { Renderer } from "./render/renderer";
-import { VrUi } from "./render/vrui";
+import { Sfx } from "../audio/sfx";
+import { AutoPlayer } from "../game/autoPlay";
+import { Game } from "../game/game";
+import { VR_RULES } from "../game/rules";
+import { attachKeyboard } from "./keyboard";
+import { setupXR } from "./xr";
+import { Renderer } from "./renderer";
+import { VrUi } from "./vrui";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
 
 const renderer = new Renderer(canvas);
-const game = new Game();
+const game = new Game(VR_RULES);
 const sfx = new Sfx();
 
 /**
@@ -20,7 +21,7 @@ const sfx = new Sfx();
  * was enough to lose it. Nothing here touches `game`; when a player comes back
  * their well is exactly where they left it.
  */
-const demoGame = new Game();
+const demoGame = new Game(VR_RULES);
 const auto = new AutoPlayer();
 
 /**

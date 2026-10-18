@@ -1,8 +1,5 @@
-import { WELL } from "../config";
 import type { Game } from "./game";
 import { Axis, IVec3, rotate } from "./vec";
-
-const { w, d, h } = WELL;
 
 /** One thing the demo player does this beat. */
 type Step =
@@ -51,8 +48,20 @@ function orientations(from: IVec3[]): Map<string, { cells: IVec3[]; path: Step[]
   return seen;
 }
 
+/** How fast the machine plays. */
+export interface Pace {
+  /** Milliseconds between one action and the next. */
+  beatMs: number;
+  /** Longer pause after a piece lands, so play has a beat to it. */
+  settleMs: number;
+}
+
+/** The attract reel: slow enough for the queue to follow. */
+export const DEMO_PACE: Pace = { beatMs: 240, settleMs: 750 };
+
 /**
- * Plays the game on its own, for the attract screen.
+ * Plays the game on its own — the attract screen in VR, and for now the
+ * opponent in versus until the evaluation engine replaces it.
  *
  * Scored the same way the balance simulations were: land low, and do not roof
  * over empty cells. It is not trying to be a strong player — it is trying to
@@ -64,10 +73,7 @@ export class AutoPlayer {
   private planningFor: IVec3[] | null = null;
   private nextStepAt = 0;
 
-  /** Milliseconds between one action and the next. */
-  private readonly BEAT_MS = 240;
-  /** Longer pause after a piece lands, so the reel has a beat to it. */
-  private readonly SETTLE_MS = 750;
+  constructor(private readonly pace: Pace = DEMO_PACE) {}
 
   reset(): void {
     this.plan = [];
@@ -91,7 +97,7 @@ export class AutoPlayer {
 
     const now = performance.now();
     if (now < this.nextStepAt) return;
-    this.nextStepAt = now + this.BEAT_MS;
+    this.nextStepAt = now + this.pace.beatMs;
 
     const step = this.plan.shift();
     if (!step) return;
@@ -107,12 +113,13 @@ export class AutoPlayer {
       // Hold on the landing before starting the next piece. Without it the
       // pieces run into one another and the whole thing reads as a machine
       // dumping blocks rather than as somebody playing.
-      this.nextStepAt = now + this.SETTLE_MS;
+      this.nextStepAt = now + this.pace.settleMs;
     }
   }
 
   /** Choose a landing spot, then the turns and slides that reach it. */
   private buildPlan(game: Game): Step[] {
+    const { w, d, h } = game.rules.well;
     const options = orientations(game.cells);
     let best: { score: number; path: Step[]; x: number; z: number } | null = null;
 

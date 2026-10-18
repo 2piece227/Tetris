@@ -1,0 +1,40 @@
+/* Shared by the menu and the review page: flat-screen pages in the same dark
+   navy as the game rooms, so moving between them does not flash. */
+:root {
+  --bg: #05060a;
+  --panel: #0c1122;
+  --panel-hi: #121a33;
+  --line: #243056;
+  --line-hi: #3d4a86;
+  --text: #eef2ff;
+  --muted: #9aa5d4;
+  --faint: #6b77a6;
+  --accent: #7c8bff;
+  --accent-ink: #05060a;
+  --good: #7cf0c0;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 16px;
+}
+a { color: inherit; text-decoration: none; }
+
+.title { text-align: center; margin: 4vh 0 40px; }
+.title h1 { font-size: clamp(40px, 7vw, 72px); font-weight: 800; letter-spacing: 4px; }
+.title p { color: var(--muted); font-size: 17px; margin-top: 10px; }
+
+.back {
+  position: fixed; top: 16px; left: 16px;
+  color: var(--muted); font-size: 14px; padding: 8px 12px; border-radius: 8px;
+}
+.back:hover { color: var(--text); background: var(--panel); }

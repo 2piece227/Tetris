@@ -1,21 +1,8 @@
-import {
-  BASE_DROP_MS,
-  ROUND_TIME_MS,
-  TIME_BONUS_PER_LAYER_MS,
-  TIME_WARNING_MS,
-  LAYERS_PER_LEVEL,
-  LAYER_SCORE,
-  LEVEL_SPEEDUP_MS,
-  MIN_DROP_MS,
-  SOFT_DROP_MS,
-  WELL,
-} from "../config";
-import { Bag } from "./bag";
+import { PieceFeed } from "./bag";
 import { Grid } from "./grid";
-import { PieceDef, TIERS } from "./pieces";
+import { PieceDef } from "./pieces";
+import type { Rules } from "./rules";
 import { Axis, IVec3, rotate } from "./vec";
-
-const { w, d, h } = WELL;
 
 // Wall-kick candidates tried (in order) when a rotation would otherwise
 // collide. Sideways nudges first, then drop the piece down — this is what
@@ -32,15 +19,25 @@ const KICKS: IVec3[] = [
   { x: 0, y: -3, z: 0 },
 ];
 
-export class Game {
-  readonly grid = new Grid();
+/**
+ * Stored on garbage cells. The versus renderer paints settled blocks by depth,
+ * not by what put them there, so this never reaches the screen — it exists so
+ * the grid holds a real value rather than a piece colour that would be a lie.
+ */
+export const GARBAGE_COLOR = 0x6b7280;
 
-  readonly bag = new Bag();
+export class Game {
+  readonly grid: Grid;
+
+  private readonly feed: PieceFeed;
+  /** A feed this game made for itself is reset with it; a shared one is not. */
+  private readonly ownsFeed: boolean;
+  private cursor = 0;
 
   current!: PieceDef;
   cells!: IVec3[]; // current rotated offsets
   pos!: IVec3; // pivot position in the well
-  next: PieceDef = this.bag.take(0);
+  next!: PieceDef;
 
   score = 0;
   level = 1;
@@ -48,28 +45,25 @@ export class Game {
   gameOver = false;
   softDropping = false;
 
-  /** Milliseconds left in the round. The clock, not the well, usually ends it. */
-  timeLeftMs = ROUND_TIME_MS;
+  /**
+   * Milliseconds left in the round, or Infinity in a mode without a clock.
+   * In VR the clock, not the well, usually ends it.
+   */
+  timeLeftMs: number;
   /** Why the round ended, for the game-over panel. */
   endedBy: "topout" | "timeout" | null = null;
 
-  /**
-   * The round is nearly out of time.
-   *
-   * The readout, the room colour and the music tempo all key off this one
-   * getter. Deriving the same condition separately in each let them disagree
-   * at the boundary — the clock turned red a frame before the room did.
-   */
-  get timeCritical(): boolean {
-    return this.timeLeftMs <= TIME_WARNING_MS;
-  }
-
-  /** 0 the moment the warning starts, 1 when the clock is out. */
-  get timePressure(): number {
-    return Math.max(0, Math.min(1, 1 - this.timeLeftMs / TIME_WARNING_MS));
-  }
-
   private dropTimer = 0;
+
+  /**
+   * Attacks waiting to be applied.
+   *
+   * Garbage cannot rise the instant it is earned: the piece this player is
+   * holding is mid-flight, and lifting the stack under it would leave it
+   * intersecting blocks it never touched. Everything here is applied at the
+   * moment that piece locks, before the next one spawns.
+   */
+  private pendingGarbage: { lines: number; holeX: number; holeZ: number }[] = [];
 
   /** Fired whenever the visible state changes (renderer redraws). */
   onChange: (() => void) | null = null;
@@ -83,23 +77,57 @@ export class Game {
   onRotate: ((axis: Axis, dir: 1 | -1) => void) | null = null;
   /** Fired when a piece settles into the stack (for sound). */
   onLock: (() => void) | null = null;
+  /** Fired when garbage is queued against this player, before it rises. */
+  onGarbageQueued: ((lines: number) => void) | null = null;
+  /** Fired when queued garbage actually lifts the stack. */
+  onGarbageRise: ((lines: number) => void) | null = null;
 
-  constructor() {
+  /**
+   * Pass a `feed` to share one piece sequence between several games (versus);
+   * leave it out and the game deals from a feed of its own, escalating on its
+   * own score.
+   */
+  constructor(readonly rules: Rules, feed?: PieceFeed) {
+    this.grid = new Grid(rules.well);
+    this.ownsFeed = !feed;
+    this.feed = feed ?? new PieceFeed(rules.tiers, () => this.score);
+    this.timeLeftMs = rules.roundTimeMs ?? Infinity;
+    this.next = this.feed.at(this.cursor++);
     this.spawn();
   }
 
+  /**
+   * The round is nearly out of time.
+   *
+   * The readout, the room colour and the music tempo all key off this one
+   * getter. Deriving the same condition separately in each let them disagree
+   * at the boundary — the clock turned red a frame before the room did.
+   */
+  get timeCritical(): boolean {
+    return this.timeLeftMs <= this.rules.timeWarningMs;
+  }
+
+  /** 0 the moment the warning starts, 1 when the clock is out. */
+  get timePressure(): number {
+    const warn = this.rules.timeWarningMs;
+    if (warn <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - this.timeLeftMs / warn));
+  }
+
   private dropInterval(): number {
-    return Math.max(MIN_DROP_MS, BASE_DROP_MS - (this.level - 1) * LEVEL_SPEEDUP_MS);
+    const r = this.rules;
+    return Math.max(r.minDropMs, r.baseDropMs - (this.level - 1) * r.levelSpeedupMs);
   }
 
   /** Label of the bag composition currently in play, for the HUD. */
   get tierLabel(): string {
-    return TIERS[Math.max(0, this.bag.tierIndex)].label;
+    return this.feed.tierLabel;
   }
 
   private spawn(): void {
+    const { w, d, h } = this.rules.well;
     this.current = this.next;
-    this.next = this.bag.take(this.score);
+    this.next = this.feed.at(this.cursor++);
     this.cells = this.current.cells.map((c) => ({ ...c }));
 
     // Centre the piece's own bounding box in the well rather than parking the
@@ -175,17 +203,53 @@ export class Game {
   }
 
   private lock(): void {
+    const r = this.rules;
     this.grid.lock(this.cells, this.pos, this.current.color);
     this.onLock?.();
     const n = this.grid.clearFullLayers();
     if (n > 0) {
-      this.score += (LAYER_SCORE[Math.min(n, LAYER_SCORE.length - 1)] ?? 0) * this.level;
+      this.score += (r.layerScore[Math.min(n, r.layerScore.length - 1)] ?? 0) * this.level;
       this.layers += n;
-      this.level = 1 + Math.floor(this.layers / LAYERS_PER_LEVEL);
-      this.timeLeftMs += n * TIME_BONUS_PER_LAYER_MS;
+      this.level = 1 + Math.floor(this.layers / r.layersPerLevel);
+      this.timeLeftMs += n * r.timeBonusPerLayerMs;
       this.onClear?.(n);
     }
+    // After the clear so a player is not handed layers they just removed, and
+    // before the spawn so the new piece is checked against the raised stack.
+    this.applyPendingGarbage();
     this.spawn();
+  }
+
+  /** Total layers queued against this player and not yet risen. */
+  get incomingGarbage(): number {
+    return this.pendingGarbage.reduce((n, g) => n + g.lines, 0);
+  }
+
+  /**
+   * Take a hit of `lines` layers. The hole column is rolled once here and
+   * shared by every layer in this hit, so a four-line attack is a four-deep
+   * shaft rather than four unrelated gaps.
+   */
+  receiveGarbage(lines: number): void {
+    if (lines <= 0 || this.gameOver) return;
+    const { w, d } = this.rules.well;
+    this.pendingGarbage.push({
+      lines,
+      holeX: Math.floor(Math.random() * w),
+      holeZ: Math.floor(Math.random() * d),
+    });
+    this.onGarbageQueued?.(lines);
+  }
+
+  private applyPendingGarbage(): void {
+    if (this.pendingGarbage.length === 0) return;
+    let total = 0;
+    for (const g of this.pendingGarbage) {
+      this.grid.riseGarbage(g.lines, g.holeX, g.holeZ, GARBAGE_COLOR);
+      total += g.lines;
+    }
+    this.pendingGarbage.length = 0;
+    this.onGarbageRise?.(total);
   }
 
   // Landing position of the current piece (for the ghost preview).
@@ -198,18 +262,20 @@ export class Game {
   tick(dtMs: number): void {
     if (this.gameOver) return;
 
-    this.timeLeftMs -= dtMs;
-    if (this.timeLeftMs <= 0) {
-      this.timeLeftMs = 0;
-      this.endedBy = "timeout";
-      this.gameOver = true;
-      this.onGameOver?.();
-      this.onChange?.();
-      return;
+    if (this.rules.roundTimeMs !== null) {
+      this.timeLeftMs -= dtMs;
+      if (this.timeLeftMs <= 0) {
+        this.timeLeftMs = 0;
+        this.endedBy = "timeout";
+        this.gameOver = true;
+        this.onGameOver?.();
+        this.onChange?.();
+        return;
+      }
     }
 
     this.dropTimer += dtMs;
-    const interval = this.softDropping ? SOFT_DROP_MS : this.dropInterval();
+    const interval = this.softDropping ? this.rules.softDropMs : this.dropInterval();
     if (this.dropTimer >= interval) {
       this.dropTimer = 0;
       if (!this.descend()) this.lock();
@@ -224,10 +290,13 @@ export class Game {
     this.layers = 0;
     this.gameOver = false;
     this.endedBy = null;
-    this.timeLeftMs = ROUND_TIME_MS;
+    this.timeLeftMs = this.rules.roundTimeMs ?? Infinity;
     this.softDropping = false;
-    this.bag.reset();
-    this.next = this.bag.take(0);
+    this.pendingGarbage.length = 0;
+    // A shared feed is reset once per round by whoever owns the round.
+    if (this.ownsFeed) this.feed.reset();
+    this.cursor = 0;
+    this.next = this.feed.at(this.cursor++);
     this.spawn();
   }
 }

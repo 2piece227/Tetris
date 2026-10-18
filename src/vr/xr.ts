@@ -4,11 +4,11 @@ import {
   type WebXRControllerComponent,
   type WebXRInputSource,
 } from "@babylonjs/core";
-import { HARD_DROP_COOLDOWN_MS } from "../config";
+import { HARD_DROP_COOLDOWN_MS } from "./config";
 import type { Sfx } from "../audio/sfx";
 import type { Game } from "../game/game";
 import { RotateIntent, resolveRotation } from "../game/viewRotation";
-import type { Renderer } from "../render/renderer";
+import type { Renderer } from "./renderer";
 
 // Turns an analog stick value into discrete steps with auto-repeat, so holding
 // the stick keeps moving/rotating the piece at a steady rate (DAS-style).

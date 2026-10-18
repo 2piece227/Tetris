@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI와 대결 · 블럭아웃</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; font-family: system-ui, "Malgun Gothic", sans-serif; }
+      #renderCanvas { width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
+
+      /* Control legend under the player's half. Read once while waiting, so it
+         sits low and out of the playfield. */
+      .legend {
+        position: fixed; bottom: 14px; left: 3%; color: #7f8bb5; font-size: 12px; line-height: 1.7;
+        user-select: none; pointer-events: none; white-space: nowrap;
+      }
+      .legend b { color: #c3ccf0; }
+      .legend kbd {
+        background: #161d38; border: 1px solid #2b3560; border-radius: 3px;
+        padding: 0 5px; font-family: inherit; font-size: 11px; color: #cdd5ff;
+      }
+
+      /* Start card and result card share styling; only one is ever shown. */
+      #start, #banner {
+        position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+        flex-direction: column; gap: 20px; background: rgba(4,6,12,0.78); color: #fff; text-align: center;
+      }
+      #start.show, #banner.show { display: flex; }
+      #bannerText { font-size: 64px; font-weight: 800; letter-spacing: 2px; }
+      #start h1 { font-size: 64px; font-weight: 800; letter-spacing: 4px; color: #eef2ff; }
+      #start p { color: #9aa5d4; font-size: 16px; line-height: 1.9; }
+      #start .keys { color: #7c8bff; font-weight: 700; }
+      #banner button, #start button {
+        font-size: 18px; font-weight: 700; color: #05060a; background: #7c8bff;
+        border: none; border-radius: 10px; padding: 14px 34px; cursor: pointer;
+      }
+      #banner small, #start small { color: #9aa5d4; font-size: 14px; }
+      #start a { color: #9aa5d4; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="renderCanvas"></canvas>
+
+    <div class="legend">
+      <b>나</b> 이동 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;
+      회전 <kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd> / 반대 <kbd>Z</kbd><kbd>C</kbd><kbd>V</kbd><br />
+      떨구기 <kbd>Space</kbd>
+    </div>
+
+    <div id="start" class="show">
+      <h1>AI와 대결</h1>
+      <p>
+        위에서 내려다보는 고정 시점이에요. 층을 지우면 상대 우물에 층이 올라가요.<br />
+        <span class="keys">Space</span>를 누르면 시작합니다
+      </p>
+      <button id="startBtn">시작</button>
+      <a href="./">← 메뉴 (Esc)</a>
+    </div>
+
+    <div id="banner">
+      <div id="bannerText">승리!</div>
+      <button id="restartBtn">다시 하기</button>
+      <small>Space · 처음 화면 Esc</small>
+    </div>
+
+    <script type="module" src="/src/versus/main.ts"></script>
+  </body>
+</html>

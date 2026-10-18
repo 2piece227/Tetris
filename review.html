@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>AI 리뷰 · 블럭아웃</title>
+    <style>
+      .entry {
+        display: flex; flex-direction: column; align-items: center; gap: 22px;
+        width: 100%; max-width: 520px; padding: 36px 28px;
+        background: var(--panel); border: 2px solid var(--line); border-radius: 18px;
+      }
+      .entry label { color: var(--muted); font-size: 16px; }
+      .digits { display: flex; gap: 12px; }
+      .digits input {
+        width: 72px; height: 92px; text-align: center; font-size: 48px; font-weight: 800;
+        color: var(--text); background: var(--bg); border: 2px solid var(--line-hi); border-radius: 14px;
+        font-family: inherit; caret-color: var(--accent);
+      }
+      .digits input:focus { outline: none; border-color: var(--accent); }
+      .entry button {
+        font-size: 18px; font-weight: 700; color: var(--accent-ink); background: var(--accent);
+        border: none; border-radius: 10px; padding: 14px 34px; cursor: pointer; font-family: inherit;
+      }
+      .entry button:disabled { opacity: 0.4; cursor: default; }
+      #status { min-height: 1.6em; color: var(--muted); font-size: 15px; text-align: center; line-height: 1.6; }
+
+      .sections {
+        display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px;
+        width: 100%; max-width: 820px; margin-top: 36px;
+      }
+      .section {
+        padding: 18px 18px 20px; border: 1px dashed var(--line); border-radius: 14px; color: var(--faint);
+      }
+      .section h3 { font-size: 16px; color: var(--muted); margin-bottom: 6px; }
+      .section p { font-size: 13.5px; line-height: 1.6; }
+      .soon { color: var(--faint); font-size: 12px; font-weight: 700; letter-spacing: 1px; margin-top: 10px; }
+
+      @media (max-width: 760px) {
+        .sections { grid-template-columns: minmax(0, 1fr); }
+        .digits input { width: 60px; height: 80px; font-size: 40px; }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="back" href="./">← 메뉴</a>
+
+    <header class="title">
+      <h1>AI 리뷰</h1>
+      <p>VR 체험이 끝나면 화면에 나온 코드를 입력하세요</p>
+    </header>
+
+    <form class="entry" id="form" autocomplete="off">
+      <label for="d0">리뷰 코드 4자리</label>
+      <div class="digits">
+        <input id="d0" inputmode="numeric" aria-label="첫째 자리" />
+        <input inputmode="numeric" aria-label="둘째 자리" />
+        <input inputmode="numeric" aria-label="셋째 자리" />
+        <input inputmode="numeric" aria-label="넷째 자리" />
+      </div>
+      <button type="submit" id="submit" disabled>리뷰 보기</button>
+      <div id="status" role="status"></div>
+    </form>
+
+    <!-- What the review will hold once the engine is in. Shown now so the shape
+         of the page can be judged before there is anything to put in it. -->
+    <section class="sections" aria-label="리뷰에 들어갈 내용">
+      <div class="section">
+        <h3>턴별 복기</h3>
+        <p>놓은 블록을 한 수씩 다시 재생하며 그때의 판을 봐요.</p>
+        <div class="soon">준비 중</div>
+      </div>
+      <div class="section">
+        <h3>수 평가</h3>
+        <p>탁월한 수, 아쉬운 수, 실수를 AI가 표시하고 더 나은 자리를 보여줘요.</p>
+        <div class="soon">준비 중</div>
+      </div>
+      <div class="section">
+        <h3>공간지각 지표</h3>
+        <p>회전 정확도, 구멍을 만든 빈도 같은 플레이 기반 지표예요.</p>
+        <div class="soon">준비 중</div>
+      </div>
+    </section>
+
+    <script type="module" src="/src/review/main.ts"></script>
+  </body>
+</html>

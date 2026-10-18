@@ -8,7 +8,7 @@ import {
   TransformNode,
   Vector3,
 } from "@babylonjs/core";
-import { CELL, WELL, WELL_ANCHOR } from "../config";
+import { CELL, WELL, WELL_ANCHOR } from "./config";
 
 const { w, d, h } = WELL;
 const TANK_W = w * CELL;
