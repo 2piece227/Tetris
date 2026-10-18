@@ -6,7 +6,9 @@ import {
   Color4,
   DirectionalLight,
   Engine,
+  GlowLayer,
   HemisphericLight,
+  LinesMesh,
   Mesh,
   MeshBuilder,
   Scene,
@@ -40,6 +42,27 @@ const ROTATE_ANIM_MS = 130;
 const NEXT_AT = { x: 0.34, y: 0.72, z: -0.06 };
 
 /**
+ * How settled blocks are coloured. TEMPORARY: picked with ?look=a|b|c|d so the
+ * candidates can be compared on the same board, on the monitor and in the
+ * headset, before one is chosen and the rest deleted.
+ *
+ *   a — current: the piece colour, lightly self-lit
+ *   b — vivid: more saturated, glossy highlight, self-light kept moderate so
+ *       the faces still shade and the cubes read as solid
+ *   c — b with a thin bright outline round every cube, Blockout style
+ *   d — neon: dark body, strong self-light and a glow pass (costliest on Quest)
+ */
+const LOOKS = {
+  a: { sat: 1, val: 1, emissive: 0.35, diffuse: 1, specular: 0.25, outline: false, glow: 0 },
+  b: { sat: 1.3, val: 1.1, emissive: 0.42, diffuse: 1, specular: 0.6, outline: false, glow: 0 },
+  c: { sat: 1.3, val: 1.1, emissive: 0.42, diffuse: 1, specular: 0.6, outline: true, glow: 0 },
+  d: { sat: 1.4, val: 1.15, emissive: 1, diffuse: 0.25, specular: 0.2, outline: false, glow: 1.1 },
+} as const;
+type LookName = keyof typeof LOOKS;
+const lookParam = new URLSearchParams(window.location.search).get("look");
+const LOOK = LOOKS[(lookParam && lookParam in LOOKS ? lookParam : "a") as LookName];
+
+/**
  * What redraw needs from a game. A live Game satisfies it; so does a board
  * being replayed in the review, which has no gravity or clock of its own.
  */
@@ -71,12 +94,14 @@ export class Renderer {
   private readonly guidePool: Mesh[] = [];
   private readonly nextPool: Mesh[] = [];
   private readonly hintPool: Mesh[] = [];
+  private readonly flashPool: Mesh[] = [];
 
   private readonly solidMaster: Mesh;
   private readonly ghostMaster: Mesh;
   private readonly guideMaster: Mesh;
   private readonly nextMaster: Mesh;
   private hintMaster: Mesh | null = null;
+  private flashMaster: Mesh | null = null;
 
   private readonly matByColor = new Map<number, StandardMaterial>();
   private demo = false;
@@ -148,6 +173,11 @@ export class Renderer {
       MeshBuilder.CreateBox("next", { size: CELL * 0.55 }, this.scene)
     );
 
+    if (LOOK.glow > 0) {
+      const glow = new GlowLayer("glow", this.scene, { mainTextureSamples: 1 });
+      glow.intensity = LOOK.glow;
+    }
+
     this.buildNextPlinth();
     this.placeForDesktop();
 
@@ -155,6 +185,26 @@ export class Renderer {
 
     window.addEventListener("resize", () => this.engine.resize());
     this.engine.runRenderLoop(() => this.scene.render());
+  }
+
+  private outline: LinesMesh | null = null;
+
+  /** The twelve edges of a block, slightly proud of its faces. */
+  private outlineMaster(): LinesMesh {
+    if (this.outline) return this.outline;
+    const h = CELL * 0.455;
+    const p = (x: number, y: number, z: number) => new Vector3(x * h, y * h, z * h);
+    const loop = (y: number) => [p(-1, y, -1), p(1, y, -1), p(1, y, 1), p(-1, y, 1), p(-1, y, -1)];
+    const lines: Vector3[][] = [loop(-1), loop(1)];
+    for (const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) lines.push([p(x, -1, z), p(x, 1, z)]);
+    const mesh = MeshBuilder.CreateLineSystem("outline", { lines }, this.scene);
+    mesh.color = new Color3(1, 1, 1);
+    mesh.alpha = 0.55;
+    mesh.isVisible = false;
+    mesh.isPickable = false;
+    mesh.parent = this.wellRoot;
+    this.outline = mesh;
+    return mesh;
   }
 
   private makeMaster(_name: string, mesh: Mesh): Mesh {
@@ -184,10 +234,19 @@ export class Renderer {
     let m = this.matByColor.get(color);
     if (!m) {
       m = new StandardMaterial("m" + color, this.scene);
-      const c = Color3.FromHexString("#" + color.toString(16).padStart(6, "0"));
-      m.diffuseColor = c;
-      m.emissiveColor = c.scale(0.35);
-      m.specularColor = new Color3(0.25, 0.25, 0.3);
+      const base = Color3.FromHexString("#" + color.toString(16).padStart(6, "0"));
+      const hsv = base.toHSV();
+      const c = new Color3();
+      Color3.HSVtoRGBToRef(
+        hsv.r,
+        Math.min(1, hsv.g * LOOK.sat),
+        Math.min(1, hsv.b * LOOK.val),
+        c
+      );
+      m.diffuseColor = c.scale(LOOK.diffuse);
+      m.emissiveColor = c.scale(LOOK.emissive);
+      m.specularColor = new Color3(LOOK.specular, LOOK.specular, LOOK.specular * 1.2);
+      m.specularPower = 48;
       this.applyDemoLook(m);
       this.matByColor.set(color, m);
     }
@@ -213,6 +272,14 @@ export class Renderer {
     if (!mesh) {
       mesh = master.clone(master.name + "_" + pool.length, parent ?? this.wellRoot)!;
       mesh.isVisible = true;
+      // Line geometry rather than Babylon's edge renderer: edge width is in
+      // world units, which at this cell size is either invisible or a slab.
+      // Lines rasterise a pixel wide at any distance.
+      if (LOOK.outline && master === this.solidMaster) {
+        const o = this.outlineMaster().clone("outline_" + pool.length, mesh)!;
+        o.isVisible = true;
+        o.position.set(0, 0, 0);
+      }
       pool.push(mesh);
     }
     mesh.setEnabled(true);
@@ -308,6 +375,34 @@ export class Renderer {
         mesh.position.copyFrom(cellToLocal(pos.x + c.x, pos.y + c.y, pos.z + c.z));
       }
     this.hideFrom(this.hintPool, n);
+  }
+
+  /**
+   * Light up whole layers — the beat between a layer filling and vanishing,
+   * so a clear reads as an event rather than blocks silently going missing.
+   */
+  flashLayers(layers: number[]): void {
+    if (!this.flashMaster) {
+      this.flashMaster = this.makeMaster(
+        "flash",
+        MeshBuilder.CreateBox(
+          "flash",
+          { width: w * CELL * 1.02, height: CELL * 1.02, depth: d * CELL * 1.02 },
+          this.scene
+        )
+      );
+      const fm = new StandardMaterial("flashMat", this.scene);
+      fm.diffuseColor = new Color3(1, 1, 1);
+      fm.emissiveColor = new Color3(1, 1, 1);
+      fm.alpha = 0.6;
+      fm.disableDepthWrite = true;
+      this.flashMaster.material = fm;
+    }
+    layers.forEach((y, i) => {
+      const mesh = this.borrow(this.flashPool, this.flashMaster!, i);
+      mesh.position.set(0, cellToLocal(0, y, 0).y, 0);
+    });
+    this.hideFrom(this.flashPool, layers.length);
   }
 
   private drawNext(game: DrawState): void {

@@ -12,6 +12,10 @@ export interface Turn {
   piece: PieceDef;
   /** The board as it was when this piece arrived. */
   before: Grid;
+  /** The board once the piece is down and any full layers are gone. */
+  after: Grid;
+  /** Layers this move filled, before they clear. Empty when nothing clears. */
+  fullLayers: number[];
   played: Scored;
   best: Scored;
   /** 1 = the best option. */
@@ -85,10 +89,22 @@ export function sampleReview(seed = 81, pieces = 40): Review {
       wellH: rules.well.h,
     };
 
+    // Locked in the piece's own colour, so the replayed stack looks like the
+    // one the player built. (featuresAfter only needs filled-or-not.)
+    const placed = grid.clone();
+    placed.lock(played.cells, played.pos, piece.color);
+    const fullLayers: number[] = [];
+    for (let y = 0; y < placed.h; y++)
+      if (placed.layerFill(y) === placed.layerCells) fullLayers.push(y);
+    const after = placed.clone();
+    after.clearFullLayers();
+
     turns.push({
       n: i + 1,
       piece,
       before: grid,
+      after,
+      fullLayers,
       played,
       best,
       rank: idx + 1,
@@ -98,11 +114,6 @@ export function sampleReview(seed = 81, pieces = 40): Review {
       accuracy: moveAccuracy(judged),
     });
 
-    // Locked in the piece's own colour, so the replayed stack looks like the
-    // one the player built. (featuresAfter only needs filled-or-not.)
-    const after = grid.clone();
-    after.lock(played.cells, played.pos, piece.color);
-    after.clearFullLayers();
     const n = played.features.cleared;
     if (n > 0) {
       score += (rules.layerScore[Math.min(n, rules.layerScore.length - 1)] ?? 0) * level;

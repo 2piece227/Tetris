@@ -106,11 +106,31 @@ export function openReport(review: Review = sampleReview()): void {
   });
 
   // ── One turn on screen ────────────────────────────────────────────────
-  function draw(animate: boolean): void {
+  // A turn is shown at two moments: "placed", the piece just down on the
+  // board it was played against (which is what the hologram is compared
+  // with), and "cleared", once any layers it completed have gone. Arriving on
+  // a turn that clears plays one into the other, so a clear happens on the
+  // move that made it rather than appearing a turn late.
+  type Phase = "placed" | "cleared";
+  let phase: Phase = "placed";
+  let timers: number[] = [];
+  const cancel = (): void => {
+    timers.forEach((id) => window.clearTimeout(id));
+    timers = [];
+    renderer.flashLayers([]);
+  };
+
+  /** Beat after landing before the full layers light up, and how long they stay lit. */
+  const CLEAR_HOLD_MS = 450;
+  const CLEAR_FLASH_MS = 320;
+
+  function render(animate: boolean): void {
     const t = turns[at];
+    const placed = phase === "placed";
     const state: DrawState = {
-      grid: t.before,
-      gameOver: false,
+      grid: placed ? t.before : t.after,
+      // Once cleared the piece is part of the stack, so no live piece is drawn.
+      gameOver: !placed,
       pos: t.played.pos,
       cells: t.played.cells,
       current: t.piece,
@@ -119,9 +139,11 @@ export function openReport(review: Review = sampleReview()): void {
       ghostPos: () => t.played.pos,
     };
     renderer.redraw(state);
-    renderer.showHint(showBest && t.rank > 1 ? t.best.cells : null, t.best.pos);
 
-    if (animate) {
+    const hint = placed && showBest && t.rank > 1;
+    renderer.showHint(hint ? t.best.cells : null, t.best.pos);
+
+    if (animate && placed) {
       const restY = renderer.pieceRoot.position.y;
       renderer.pieceRoot.position.y = restY + DROP_FROM;
       drop = { startedAt: performance.now(), restY };
@@ -136,23 +158,53 @@ export function openReport(review: Review = sampleReview()): void {
     $("cLead").textContent = L.lead;
     $("cFacts").innerHTML = facts(t).map((f) => `<li>${f}</li>`).join("");
     $("cRank").textContent = `가능한 ${t.options}곳 중 ${t.rank}번째`;
-    $("cHint").textContent =
-      t.rank === 1 ? "AI 추천과 같은 자리" : showBest ? "Space: 추천 숨기기" : "Space: 추천 보기";
+    $("cHint").textContent = t.fullLayers.length
+      ? placed ? "Space: 지운 뒤 보기" : "Space: 놓는 순간 다시 보기"
+      : t.rank === 1 ? "AI 추천과 같은 자리" : showBest ? "Space: 추천 숨기기" : "Space: 추천 보기";
 
     const legend = $("cLegend");
     const [mine, ai] = [...legend.children] as HTMLElement[];
     (mine.firstElementChild as HTMLElement).style.background = hex(t.piece.color);
-    ai.style.display = t.rank > 1 && showBest ? "" : "none";
+    ai.style.display = hint ? "" : "none";
 
     dots.forEach((d, i) => d.classList.toggle("on", i === at));
     dots[at].scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  /** Show the current turn from the moment it was placed, then let it clear. */
+  function arrive(animate: boolean): void {
+    cancel();
+    phase = "placed";
+    render(animate);
+    const t = turns[at];
+    if (!t.fullLayers.length) return;
+    const lit = (animate ? DROP_MS : 0) + CLEAR_HOLD_MS;
+    timers.push(window.setTimeout(() => renderer.flashLayers(t.fullLayers), lit));
+    timers.push(
+      window.setTimeout(() => {
+        renderer.flashLayers([]);
+        phase = "cleared";
+        render(false);
+      }, lit + CLEAR_FLASH_MS)
+    );
   }
 
   function go(i: number): void {
     const next = Math.max(0, Math.min(turns.length - 1, i));
     const forwardOne = next === at + 1;
     at = next;
-    draw(forwardOne);
+    arrive(forwardOne);
+  }
+
+  /** Space: the hologram on an ordinary turn; before/after on one that clears. */
+  function toggle(): void {
+    const t = turns[at];
+    cancel();
+    if (t.fullLayers.length) {
+      phase = phase === "placed" ? "cleared" : "placed";
+      if (phase === "placed") showBest = true;
+    } else showBest = !showBest;
+    render(false);
   }
 
   // The piece settles into place when stepping forward, so a step reads as a
@@ -175,14 +227,11 @@ export function openReport(review: Review = sampleReview()): void {
       case "ArrowRight": go(at + 1); break;
       case "Home": go(0); break;
       case "End": go(turns.length - 1); break;
-      case " ":
-        showBest = !showBest;
-        draw(false);
-        break;
+      case " ": toggle(); break;
       default: used = false;
     }
     if (used) e.preventDefault();
   });
 
-  draw(false);
+  arrive(false);
 }
