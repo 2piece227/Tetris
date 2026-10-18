@@ -7,7 +7,7 @@ type Step =
   | { kind: "move"; dx: number; dz: number }
   | { kind: "drop" };
 
-const key = (cells: IVec3[]): string => {
+export const key = (cells: IVec3[]): string => {
   const mx = Math.min(...cells.map((c) => c.x));
   const my = Math.min(...cells.map((c) => c.y));
   const mz = Math.min(...cells.map((c) => c.z));
@@ -25,7 +25,7 @@ const key = (cells: IVec3[]): string => {
  * piece four times to arrive where two turns would have done — which is what it
  * looks like when a plan is executed without one.
  */
-function orientations(from: IVec3[]): Map<string, { cells: IVec3[]; path: Step[] }> {
+export function orientations(from: IVec3[]): Map<string, { cells: IVec3[]; path: Step[] }> {
   const seen = new Map<string, { cells: IVec3[]; path: Step[] }>();
   const start = from.map((c) => ({ ...c }));
   seen.set(key(start), { cells: start, path: [] });

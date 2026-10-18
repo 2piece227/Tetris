@@ -16,7 +16,7 @@ import {
 } from "@babylonjs/core";
 import { CELL, WELL, WELL_ANCHOR, XR_DISTANCE } from "./config";
 import type { Game } from "../game/game";
-import { Axis, rotate } from "../game/vec";
+import { Axis, IVec3, rotate } from "../game/vec";
 import { TANK_H, buildPedestal, buildRoom, buildTank } from "./environment";
 
 const { w, d } = WELL;
@@ -38,6 +38,12 @@ const ROTATE_ANIM_MS = 130;
 // Negative z is the player's side of the tank (Babylon planes face -Z, and the
 // desktop camera and the XR recenter both put the viewer there).
 const NEXT_AT = { x: 0.34, y: 0.72, z: -0.06 };
+
+/**
+ * What redraw needs from a game. A live Game satisfies it; so does a board
+ * being replayed in the review, which has no gravity or clock of its own.
+ */
+export type DrawState = Pick<Game, "grid" | "gameOver" | "pos" | "cells" | "current" | "next" | "ghostPos">;
 
 // grid cell (integer) -> local position inside wellRoot (which sits at the
 // tank's bottom, centred on the tank footprint)
@@ -64,11 +70,13 @@ export class Renderer {
   private readonly ghostPool: Mesh[] = [];
   private readonly guidePool: Mesh[] = [];
   private readonly nextPool: Mesh[] = [];
+  private readonly hintPool: Mesh[] = [];
 
   private readonly solidMaster: Mesh;
   private readonly ghostMaster: Mesh;
   private readonly guideMaster: Mesh;
   private readonly nextMaster: Mesh;
+  private hintMaster: Mesh | null = null;
 
   private readonly matByColor = new Map<number, StandardMaterial>();
   private demo = false;
@@ -215,7 +223,7 @@ export class Renderer {
     for (let i = used; i < pool.length; i++) pool[i].setEnabled(false);
   }
 
-  redraw(game: Game): void {
+  redraw(game: DrawState): void {
     let s = 0;
     const put = (x: number, y: number, z: number, color: number): void => {
       const mesh = this.borrow(this.solidPool, this.solidMaster, s++);
@@ -275,7 +283,34 @@ export class Renderer {
     this.drawNext(game);
   }
 
-  private drawNext(game: Game): void {
+  /**
+   * A hologram of a placement — the review's "the engine would have put it
+   * here". Built on first use, since the game itself never shows one. Pass
+   * null to clear it.
+   */
+  showHint(cells: IVec3[] | null, pos?: IVec3): void {
+    if (!this.hintMaster) {
+      this.hintMaster = this.makeMaster(
+        "hint",
+        MeshBuilder.CreateBox("hint", { size: CELL * 0.94 }, this.scene)
+      );
+      const hm = new StandardMaterial("hintMat", this.scene);
+      hm.diffuseColor = new Color3(0.2, 0.9, 1);
+      hm.emissiveColor = new Color3(0.15, 0.75, 0.95);
+      hm.alpha = 0.42;
+      hm.disableDepthWrite = true;
+      this.hintMaster.material = hm;
+    }
+    let n = 0;
+    if (cells && pos)
+      for (const c of cells) {
+        const mesh = this.borrow(this.hintPool, this.hintMaster, n++);
+        mesh.position.copyFrom(cellToLocal(pos.x + c.x, pos.y + c.y, pos.z + c.z));
+      }
+    this.hideFrom(this.hintPool, n);
+  }
+
+  private drawNext(game: DrawState): void {
     const cells = game.next.cells;
     const mid = (sel: (c: { x: number; y: number; z: number }) => number): number => {
       const vals = cells.map(sel);

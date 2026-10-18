@@ -17,6 +17,13 @@ export class Grid {
     this.cells = new Int32Array(this.w * this.d * this.h).fill(EMPTY);
   }
 
+  /** An independent copy, for trying a placement without touching this grid. */
+  clone(): Grid {
+    const g = new Grid(this);
+    g.cells.set(this.cells);
+    return g;
+  }
+
   /** Cells in one layer, for turning layerFill into a fraction. */
   get layerCells(): number {
     return this.w * this.d;

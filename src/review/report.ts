@@ -1,0 +1,188 @@
+import { Renderer, type DrawState } from "../vr/renderer";
+import { LABELS, LABEL_ORDER } from "./labels";
+import { sampleReview, type Review, type Turn } from "./sample";
+
+const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+const hex = (c: number): string => "#" + c.toString(16).padStart(6, "0");
+
+/** How far above its resting place a piece starts when a step brings it in. */
+const DROP_FROM = 0.28;
+const DROP_MS = 220;
+
+/** Plain-language lines under the verdict, from what the move actually did. */
+function facts(t: Turn): string[] {
+  const out: string[] = [];
+  const p = t.played.features;
+  const b = t.best.features;
+
+  if (p.cleared > 0) out.push(`${p.cleared}층을 지웠어요.`);
+  if (t.judged.holesCreated > 0) out.push(`구멍 ${t.judged.holesCreated}개를 만들었어요.`);
+  if (p.top >= t.judged.wellH - 6) out.push(`가장 높은 곳이 ${p.top}층까지 올라왔어요.`);
+
+  if (t.rank > 1) {
+    if (b.cleared > p.cleared) out.push(`추천 자리에서는 ${b.cleared}층을 지울 수 있었어요.`);
+    else if (b.holes < p.holes) out.push(b.holes === 0 ? "추천 자리는 구멍 없이 놓여요." : `추천 자리는 구멍이 ${p.holes - b.holes}개 적어요.`);
+    else if (b.top < p.top) out.push(`추천 자리가 ${p.top - b.top}층 더 낮아요.`);
+    else out.push("추천 자리가 바닥을 더 평평하게 만들어요.");
+  }
+  return out;
+}
+
+export function openReport(review: Review = sampleReview()): void {
+  // The canvas has to be on screen before the engine sizes itself to it.
+  document.body.classList.add("reporting");
+
+  const renderer = new Renderer($<HTMLCanvasElement>("stage"));
+  renderer.engine.resize();
+  const cam = renderer.camera;
+  cam.radius = 1.75;
+  // Free to drag round, but never under the floor or straight down the shaft:
+  // either way the stack disappears and a visitor does not know how to get back.
+  cam.lowerBetaLimit = 0.25;
+  cam.upperBetaLimit = 1.45;
+
+  const { turns } = review;
+  let at = 0;
+  let showBest = true;
+  let drop: { startedAt: number; restY: number } | null = null;
+
+  // ── Side panel ────────────────────────────────────────────────────────
+  $("sScore").textContent = review.score.toLocaleString("ko-KR");
+  $("sLayers").textContent = String(review.layers);
+  $("sAcc").textContent = `${review.accuracy}%`;
+
+  $("counts").innerHTML = LABEL_ORDER.map((l) => {
+    const n = turns.filter((t) => t.label === l).length;
+    return `<span class="count"><i style="background:${LABELS[l].color}"></i>${LABELS[l].name} <b>${n}</b></span>`;
+  }).join("");
+
+  $("meters").innerHTML = review.indicators
+    .map(
+      (m) => `<div class="meter">
+        <div class="row1"><span>${m.name}${m.sample ? "<em>샘플</em>" : ""}</span><b>${m.value}%</b></div>
+        <div class="bar"><div style="width:${m.value}%"></div></div>
+        <p>${m.note}</p>
+      </div>`
+    )
+    .join("");
+
+  // Worst verdict first, then the bigger loss: a 블런더 outranks a 의문 that
+  // happened to cost more points, because the verdict is what the player reads.
+  const severity = (t: Turn): number => LABEL_ORDER.indexOf(t.label);
+  const byLoss = [...turns].sort(
+    (a, b) => severity(b) - severity(a) || b.judged.loss - a.judged.loss
+  )[0];
+  const bestClear = [...turns]
+    .filter((t) => t.played.features.cleared > 0)
+    .sort((a, b) => b.played.features.cleared - a.played.features.cleared || a.rank - b.rank)[0];
+  const brilliant = turns.find((t) => t.label === "brilliant");
+  const moments: [string, Turn | undefined][] = [
+    ["가장 좋은 수", bestClear],
+    ["가장 큰 실수", byLoss && severity(byLoss) >= LABEL_ORDER.indexOf("dubious") ? byLoss : undefined],
+    ["탁월한 수", brilliant],
+  ];
+  const momentsEl = $("moments");
+  for (const [name, t] of moments) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.disabled = !t;
+    btn.innerHTML = t
+      ? `<span class="count"><i style="background:${LABELS[t.label].color}"></i></span>${name}<small>${t.n}수</small>`
+      : `${name}<small>없음</small>`;
+    if (t) btn.addEventListener("click", () => go(t.n - 1));
+    momentsEl.appendChild(btn);
+  }
+
+  // ── Timeline ──────────────────────────────────────────────────────────
+  const dotsEl = $("dots");
+  const dots = turns.map((t, i) => {
+    const d = document.createElement("div");
+    d.className = "dot";
+    d.style.background = LABELS[t.label].color;
+    d.title = `${t.n}수 · ${LABELS[t.label].name}`;
+    d.addEventListener("click", () => go(i));
+    dotsEl.appendChild(d);
+    return d;
+  });
+
+  // ── One turn on screen ────────────────────────────────────────────────
+  function draw(animate: boolean): void {
+    const t = turns[at];
+    const state: DrawState = {
+      grid: t.before,
+      gameOver: false,
+      pos: t.played.pos,
+      cells: t.played.cells,
+      current: t.piece,
+      next: turns[at + 1]?.piece ?? t.piece,
+      // Already resting, so the landing preview has nothing to show.
+      ghostPos: () => t.played.pos,
+    };
+    renderer.redraw(state);
+    renderer.showHint(showBest && t.rank > 1 ? t.best.cells : null, t.best.pos);
+
+    if (animate) {
+      const restY = renderer.pieceRoot.position.y;
+      renderer.pieceRoot.position.y = restY + DROP_FROM;
+      drop = { startedAt: performance.now(), restY };
+    } else drop = null;
+
+    const L = LABELS[t.label];
+    $("cTurn").textContent = `${t.n}수`;
+    const badge = $("cBadge");
+    badge.textContent = L.name + (L.mark ? ` ${L.mark}` : "");
+    badge.style.background = L.color;
+    $("cPiece").textContent = `조각 ${t.piece.name}`;
+    $("cLead").textContent = L.lead;
+    $("cFacts").innerHTML = facts(t).map((f) => `<li>${f}</li>`).join("");
+    $("cRank").textContent = `가능한 ${t.options}곳 중 ${t.rank}번째`;
+    $("cHint").textContent =
+      t.rank === 1 ? "AI 추천과 같은 자리" : showBest ? "Space: 추천 숨기기" : "Space: 추천 보기";
+
+    const legend = $("cLegend");
+    const [mine, ai] = [...legend.children] as HTMLElement[];
+    (mine.firstElementChild as HTMLElement).style.background = hex(t.piece.color);
+    ai.style.display = t.rank > 1 && showBest ? "" : "none";
+
+    dots.forEach((d, i) => d.classList.toggle("on", i === at));
+    dots[at].scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+
+  function go(i: number): void {
+    const next = Math.max(0, Math.min(turns.length - 1, i));
+    const forwardOne = next === at + 1;
+    at = next;
+    draw(forwardOne);
+  }
+
+  // The piece settles into place when stepping forward, so a step reads as a
+  // move being made rather than the board swapping under you.
+  renderer.scene.onBeforeRenderObservable.add(() => {
+    if (!drop) return;
+    const t = Math.min(1, (performance.now() - drop.startedAt) / DROP_MS);
+    const eased = 1 - (1 - t) * (1 - t);
+    renderer.pieceRoot.position.y = drop.restY + DROP_FROM * (1 - eased);
+    if (t >= 1) drop = null;
+  });
+
+  $("prev").addEventListener("click", () => go(at - 1));
+  $("next").addEventListener("click", () => go(at + 1));
+
+  window.addEventListener("keydown", (e) => {
+    let used = true;
+    switch (e.key) {
+      case "ArrowLeft": go(at - 1); break;
+      case "ArrowRight": go(at + 1); break;
+      case "Home": go(0); break;
+      case "End": go(turns.length - 1); break;
+      case " ":
+        showBest = !showBest;
+        draw(false);
+        break;
+      default: used = false;
+    }
+    if (used) e.preventDefault();
+  });
+
+  draw(false);
+}

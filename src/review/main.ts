@@ -36,7 +36,9 @@ boxes[0].focus();
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (code().length !== boxes.length) return;
-  // Nothing to look the code up in yet: game records are not saved anywhere
-  // until the booth's record server exists.
-  status.textContent = `코드 ${code()} — 아직 기록 서버가 연결되지 않아 리뷰를 불러올 수 없어요.`;
+  // Nothing to look the code up in yet — game records are not saved anywhere
+  // until the booth's record server exists — so every code opens the sample.
+  // Loaded on demand: the entry screen should not wait on the 3D engine.
+  status.textContent = "불러오는 중…";
+  void import("./report").then(({ openReport }) => openReport());
 });
