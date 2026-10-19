@@ -63,3 +63,30 @@ async function lookUp(c: string): Promise<void> {
   }
   openReport(review);
 }
+
+/**
+ * A round carried in the link itself (#r=…), from another device — open its
+ * review straight away, no code needed.
+ */
+async function openFromLink(): Promise<void> {
+  const m = /^#r=(.+)$/.exec(location.hash);
+  if (!m) return;
+  status.textContent = "불러오는 중…";
+  const [{ decodeRecord }, { reviewFromRecord }, { openReport }] = await Promise.all([
+    import("../record/share"),
+    import("./analysis"),
+    import("./report"),
+  ]);
+  const record = await decodeRecord(m[1]);
+  if (!record) {
+    status.textContent = "링크에 담긴 판을 읽을 수 없어요.";
+    return;
+  }
+  const { review, problem } = reviewFromRecord(record);
+  if (!review) {
+    status.textContent = `이 판의 리뷰를 만들 수 없어요: ${problem}`;
+    return;
+  }
+  openReport(review);
+}
+void openFromLink();
