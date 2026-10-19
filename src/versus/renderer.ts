@@ -17,6 +17,13 @@ import { PlayerView } from "./playerView";
  * piece, the cards — is HTML laid over the canvas (see hud.ts): versus only
  * ever runs on a flat screen, so there is no need to draw text in the scene.
  */
+/**
+ * Share of the screen width kept clear at each outer edge for the HUD panel.
+ * Must match --gutter in versus.html. On a narrow screen the panels are hidden
+ * and the gutter collapses there too.
+ */
+const GUTTER = window.matchMedia("(max-width: 900px)").matches ? 0 : 0.12;
+
 export class Renderer {
   readonly engine: Engine;
   readonly scene: Scene;
@@ -28,9 +35,13 @@ export class Renderer {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = new Color4(0.015, 0.02, 0.038, 1);
 
-    // Viewports are normalised with the origin at the bottom-left.
-    this.p1 = new PlayerView(this.scene, LAYER_1P, new Viewport(0, 0, 0.5, 1));
-    this.p2 = new PlayerView(this.scene, LAYER_2P, new Viewport(0.5, 0, 0.5, 1));
+    // Viewports are normalised with the origin at the bottom-left. Each well
+    // gets its half of the screen less a gutter at the outer edge, where the
+    // HUD panel sits — so the pit can fill its viewport without anything
+    // printed over it.
+    const half = 0.5 - GUTTER;
+    this.p1 = new PlayerView(this.scene, LAYER_1P, new Viewport(GUTTER, 0, half, 1));
+    this.p2 = new PlayerView(this.scene, LAYER_2P, new Viewport(0.5, 0, half, 1));
     this.scene.activeCameras = [this.p1.camera, this.p2.camera];
 
     const hemi = new HemisphericLight("hemi", new Vector3(0.2, 1, 0.1), this.scene);

@@ -26,7 +26,7 @@ const pick = <T extends Record<string, unknown>>(name: string, options: T, fallb
  * Top-down camera, Blockout style: the eye looks straight down the shaft, so
  * depth reads as perspective foreshortening and the stack recedes below you.
  *
- * TEMPORARY: ?cam=a|b|c, to compare framings on the same board.
+ * b is the default; ?cam=a|b|c switches, to compare framings on the same board.
  *   a — the eye well above the mouth: the whole pit floats in the frame
  *   b — the mouth fills the frame edge to edge, as in Blockout
  *   c — b with a wider lens: the walls rake in harder and the floor recedes
@@ -41,7 +41,8 @@ export const TOPDOWN = pick(
     b: { fov: 0.9, eyeCells: 0, fill: true },
     c: { fov: 1.25, eyeCells: 0, fill: true },
   },
-  "a"
+  // b picked (2026-10-20): the original's framing.
+  "b"
 );
 
 /**
@@ -56,7 +57,7 @@ export const DEPTH_FOG = params.get("fog") === "1";
 // per depth is what lets a player tell at a glance how high the stack has got.
 
 /**
- * Layer colours. TEMPORARY: ?palette=a|b to compare.
+ * Layer colours. b is the default; ?palette=a|b switches.
  *
  *   a — a rainbow ramp from the floor to the mouth (hue climbs with height),
  *       alternating saturation and lightness so neighbours differ
@@ -68,7 +69,8 @@ export const DEPTH_FOG = params.get("fog") === "1";
  * gradient for every layer having a colour of its own, which the gauge then
  * names.
  */
-const PALETTE = params.get("palette") === "b" ? "b" : "a";
+/** b picked (2026-10-20); ?palette=a brings the ramp back for comparison. */
+const PALETTE = params.get("palette") === "a" ? "a" : "b";
 
 const DISTINCT = [
   0xff3b3b, // 1 red

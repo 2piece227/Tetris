@@ -44,8 +44,15 @@
       .vs { font-size: 22px; font-weight: 900; letter-spacing: 3px; color: var(--faint); padding: 0 6px; }
 
       /* ─── Side panels: next piece and attack tally ─────────────────────── */
-      .side { position: absolute; top: 112px; width: 156px; padding: 14px 16px 16px; }
-      .side.s0 { left: 16px; } .side.s1 { right: 16px; }
+      /* Each pit fills its share of the screen edge to edge, Blockout style; the
+         readouts live in a gutter at each outer edge instead of on top of it.
+         The width must match GUTTER in src/versus/renderer.ts. */
+      :root { --gutter: 12vw; }
+      .side {
+        position: absolute; top: 112px; bottom: 76px; width: calc(var(--gutter) - 24px); min-width: 120px;
+        padding: 14px 14px 16px; display: flex; flex-direction: column; align-items: stretch; overflow: hidden;
+      }
+      .side.s0 { left: 12px; } .side.s1 { right: 12px; }
       .side h3 { font-size: 12px; color: var(--faint); font-weight: 700; letter-spacing: 1.5px; margin-bottom: 8px; }
       .next { height: 96px; display: flex; align-items: center; justify-content: center; }
       .next svg { max-width: 112px; max-height: 92px; }
@@ -54,12 +61,11 @@
       .tally b { color: var(--text); font-variant-numeric: tabular-nums; }
 
       /* ─── Gauges by the divider ────────────────────────────────────────── */
-      .gauges { position: absolute; top: 50%; transform: translateY(-50%); display: flex; gap: 6px; align-items: flex-end; }
-      .gauges.g0 { right: calc(50% + 12px); flex-direction: row-reverse; }
-      .gauges.g1 { left: calc(50% + 12px); }
+      .side .gauge-title { margin-top: 18px; }
+      .gauges { display: flex; gap: 6px; align-items: flex-end; justify-content: center; flex: 1; min-height: 0; }
       .bar { display: flex; flex-direction: column; gap: 3px; }
       .bar .slot { width: 18px; height: clamp(14px, 3vh, 26px); border-radius: 4px; background: rgba(10,14,28,0.75); border: 1px solid #232c52; overflow: hidden; }
-      .bar .slot.top { border-color: rgba(255,90,90,0.45); }
+      .bar .slot.brink { border-color: rgba(255,90,90,0.45); }
       .bar .slot { position: relative; }
       .bar .fill { width: 100%; height: 100%; opacity: 0; transition: opacity 0.15s; }
       .bar .num {
@@ -81,7 +87,8 @@
         font-size: clamp(32px, 4.4vw, 60px); font-weight: 900; letter-spacing: 2px;
         text-shadow: 0 4px 24px rgba(0,0,0,0.7);
       }
-      #flash0 { left: 0; } #flash1 { right: 0; }
+      #flash0 { left: var(--gutter); width: calc(50% - var(--gutter)); }
+      #flash1 { right: var(--gutter); width: calc(50% - var(--gutter)); }
       .flash.attack { color: #ffd166; }
       .flash.hit { color: #ff7b7b; }
       .flash.show { animation: rise 1.2s ease-out forwards; }
@@ -151,6 +158,7 @@
 
       @media (max-width: 900px) {
         .side { display: none; }
+        :root { --gutter: 0px; }
         .keys { display: none; }
         .player .score { font-size: 26px; }
       }
@@ -185,6 +193,11 @@
           <div>보낸 공격 <b id="sent0">0</b></div>
           <div>받은 공격 <b id="recv0">0</b></div>
         </div>
+        <h3 class="gauge-title">높이 · 공격</h3>
+        <div class="gauges" title="높이 · 들어올 공격">
+          <div class="bar" id="gauge0"></div>
+          <div class="bar attack" id="attack0"></div>
+        </div>
       </div>
       <div class="side s1 glass">
         <h3>다음 조각</h3>
@@ -193,15 +206,11 @@
           <div>보낸 공격 <b id="sent1">0</b></div>
           <div>받은 공격 <b id="recv1">0</b></div>
         </div>
-      </div>
-
-      <div class="gauges g0" title="높이 · 들어올 공격">
-        <div class="bar" id="gauge0"></div>
-        <div class="bar attack" id="attack0"></div>
-      </div>
-      <div class="gauges g1" title="높이 · 들어올 공격">
-        <div class="bar" id="gauge1"></div>
-        <div class="bar attack" id="attack1"></div>
+        <h3 class="gauge-title">높이 · 공격</h3>
+        <div class="gauges" title="높이 · 들어올 공격">
+          <div class="bar" id="gauge1"></div>
+          <div class="bar attack" id="attack1"></div>
+        </div>
       </div>
 
       <div class="flash" id="flash0"></div>

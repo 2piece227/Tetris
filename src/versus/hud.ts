@@ -41,7 +41,7 @@ export class Hud {
       // Top layer first in the DOM, so the column reads floor-at-the-bottom.
       for (let layer = WELL.h - 1; layer >= 0; layer--) {
         const slot = document.createElement("div");
-        slot.className = "slot" + (layer >= WELL.h - DANGER_LAYERS ? " top" : "");
+        slot.className = "slot" + (layer >= WELL.h - DANGER_LAYERS ? " brink" : "");
         const fill = document.createElement("div");
         fill.className = "fill";
         fill.style.background = hex(layerColor(layer));
