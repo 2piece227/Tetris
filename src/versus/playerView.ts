@@ -18,6 +18,26 @@ import type { IVec3 } from "../game/vec";
 const { w, d, h } = WELL;
 const WELL_H = h * CELL;
 
+/**
+ * How settled blocks are drawn. TEMPORARY: picked with ?blocks=a|b|c|d so the
+ * candidates can be compared on the same board before one is kept.
+ *
+ *   a — current: dark solid cubes in their layer's colour
+ *   b — crisp: brighter, with a dark outline round every cube
+ *   c — capped: dark sides with a bright tile on top, so from above the stack
+ *       reads as a grid of tiles and height shows as light against shade
+ *   d — glass: see-through bodies with glowing edges in the layer colour, so
+ *       the holes in the layers below show through
+ */
+const BLOCK_STYLES = {
+  a: { diffuse: 0.62, emissive: 0.1, alpha: 1, outline: "none", cap: false },
+  b: { diffuse: 0.9, emissive: 0.28, alpha: 1, outline: "dark", cap: false },
+  c: { diffuse: 0.42, emissive: 0.06, alpha: 1, outline: "none", cap: true },
+  d: { diffuse: 0.5, emissive: 0.35, alpha: 0.3, outline: "color", cap: false },
+} as const;
+const blocksParam = new URLSearchParams(window.location.search).get("blocks");
+const BLOCK = BLOCK_STYLES[(blocksParam && blocksParam in BLOCK_STYLES ? blocksParam : "a") as keyof typeof BLOCK_STYLES];
+
 /** grid cell -> position inside this player's wellRoot */
 function cellToLocal(x: number, y: number, z: number): Vector3 {
   return new Vector3(
@@ -219,9 +239,13 @@ export class PlayerView {
       // Kept dark on purpose. These cubes are stacked several deep under a
       // white wireframe piece, and at full brightness the near layers glare
       // enough to wash out the hue differences between them.
-      m.diffuseColor = c.scale(0.62);
-      m.emissiveColor = c.scale(0.1);
+      m.diffuseColor = c.scale(BLOCK.diffuse);
+      m.emissiveColor = c.scale(BLOCK.emissive);
       m.specularColor = new Color3(0.08, 0.08, 0.1);
+      if (BLOCK.alpha < 1) {
+        m.alpha = BLOCK.alpha;
+        m.disableDepthWrite = true;
+      }
       this.matByColor.set(color, m);
     }
     return m;
@@ -241,6 +265,44 @@ export class PlayerView {
 
   private hideFrom(pool: Mesh[], used: number): void {
     for (let i = used; i < pool.length; i++) pool[i].setEnabled(false);
+  }
+
+  private capMats = new Map<number, StandardMaterial>();
+
+  /** Outline and top tile for a settled block, per the chosen block style. */
+  private decorate(mesh: Mesh, color: number): void {
+    const meta = (mesh.metadata ??= {}) as { outline?: LinesMesh; cap?: Mesh };
+    if (BLOCK.outline !== "none") {
+      if (!meta.outline) {
+        meta.outline = this.cubeOutline("blockEdge", CELL * 0.452, this.scene);
+        meta.outline.parent = mesh;
+        meta.outline.position.set(0, 0, 0);
+        meta.outline.isVisible = true;
+      }
+      const c = Color3.FromHexString("#" + color.toString(16).padStart(6, "0"));
+      meta.outline.color = BLOCK.outline === "dark" ? new Color3(0.02, 0.03, 0.06) : c.scale(1.25);
+      meta.outline.alpha = BLOCK.outline === "dark" ? 0.9 : 1;
+    }
+    if (BLOCK.cap) {
+      if (!meta.cap) {
+        meta.cap = MeshBuilder.CreateBox("cap", { width: CELL * 0.8, height: CELL * 0.04, depth: CELL * 0.8 }, this.scene);
+        meta.cap.parent = mesh;
+        meta.cap.position.set(0, CELL * 0.45, 0);
+        meta.cap.layerMask = this.mask;
+        meta.cap.isPickable = false;
+      }
+      let m = this.capMats.get(color);
+      if (!m) {
+        m = new StandardMaterial("cap" + color, this.scene);
+        const c = Color3.FromHexString("#" + color.toString(16).padStart(6, "0"));
+        const light = Color3.Lerp(c, Color3.White(), 0.3);
+        m.diffuseColor = light;
+        m.emissiveColor = light.scale(0.55);
+        m.specularColor = new Color3(0.1, 0.1, 0.1);
+        this.capMats.set(color, m);
+      }
+      meta.cap.material = m;
+    }
   }
 
   /**
@@ -278,7 +340,9 @@ export class PlayerView {
     game.grid.forEachFilled((x, y, z) => {
       const mesh = this.borrow(this.solidPool, this.solidMaster, s++);
       mesh.position.copyFrom(cellToLocal(x, y, z));
-      mesh.material = this.solidMat(layerColor(y));
+      const color = layerColor(y);
+      mesh.material = this.solidMat(color);
+      this.decorate(mesh, color);
     });
     this.hideFrom(this.solidPool, s);
 
