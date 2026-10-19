@@ -1,4 +1,5 @@
 import {
+  Camera,
   Color3,
   Color4,
   FreeCamera,
@@ -39,6 +40,9 @@ const BLOCK_STYLES = {
 const blocksParam = new URLSearchParams(window.location.search).get("blocks");
 /** b was picked (2026-10-20); the others stay reachable by ?blocks= until the choice is final. */
 const BLOCK = BLOCK_STYLES[(blocksParam && blocksParam in BLOCK_STYLES ? blocksParam : "b") as keyof typeof BLOCK_STYLES];
+
+/** How long a cleared layer's flash lasts. */
+const CLEAR_FLASH_MS = 480;
 
 /** grid cell -> position inside this player's wellRoot */
 function cellToLocal(x: number, y: number, z: number): Vector3 {
@@ -99,6 +103,14 @@ export class PlayerView {
     );
     this.camera.rotation = new Vector3(Math.PI / 2, 0, 0);
     this.camera.fov = TOPDOWN.fov;
+    if (TOPDOWN.fill) {
+      // Frame by width: the mouth meets the left and right edges of this half
+      // of the screen, the way Blockout's pit fills its window. A hair beyond,
+      // so the rim posts stay in shot.
+      this.camera.fovMode = Camera.FOVMODE_HORIZONTAL_FIXED;
+      const halfW = (w * CELL) / 2;
+      this.camera.position.y = WELL_H + (halfW / Math.tan(TOPDOWN.fov / 2)) * 1.03;
+    }
     this.camera.minZ = 0.01;
     this.camera.viewport = viewport;
     this.camera.layerMask = mask;
@@ -290,6 +302,60 @@ export class PlayerView {
   }
 
   private capMats = new Map<number, StandardMaterial>();
+
+  private readonly clearFlashes: { mesh: Mesh; mat: StandardMaterial; startedAt: number }[] = [];
+
+  /**
+   * A cleared layer flares and spreads out of the walls before it is gone.
+   * The grid has already dropped the layer by the time this runs, so the flash
+   * is drawn where it was, not built from its blocks.
+   */
+  flashClear(layers: number[]): void {
+    const now = performance.now();
+    for (const y of layers) {
+      const mesh = MeshBuilder.CreateBox(
+        "clearFlash",
+        { width: w * CELL * 0.98, height: CELL * 0.96, depth: d * CELL * 0.98 },
+        this.scene
+      );
+      mesh.parent = this.root;
+      mesh.layerMask = this.mask;
+      mesh.isPickable = false;
+      mesh.position.copyFrom(cellToLocal(0, y, 0));
+      mesh.position.x = 0;
+      mesh.position.z = 0;
+      const mat = new StandardMaterial("clearFlashMat", this.scene);
+      mat.diffuseColor = new Color3(1, 1, 1);
+      mat.emissiveColor = new Color3(1, 1, 1);
+      mat.disableDepthWrite = true;
+      mat.alpha = 0.9;
+      mesh.material = mat;
+      this.clearFlashes.push({ mesh, mat, startedAt: now });
+    }
+    if (!this.flashTicking) {
+      this.flashTicking = true;
+      this.scene.onBeforeRenderObservable.add(() => this.stepClearFlashes());
+    }
+  }
+
+  private flashTicking = false;
+
+  private stepClearFlashes(): void {
+    const now = performance.now();
+    for (let i = this.clearFlashes.length - 1; i >= 0; i--) {
+      const f = this.clearFlashes[i];
+      const t = Math.min(1, (now - f.startedAt) / CLEAR_FLASH_MS);
+      // Bright at once, then spreading past the walls as it fades.
+      const grow = 1 + 0.18 * t;
+      f.mesh.scaling.set(grow, 1 - 0.6 * t, grow);
+      f.mat.alpha = 0.9 * (1 - t) * (1 - t);
+      if (t >= 1) {
+        f.mesh.dispose();
+        f.mat.dispose();
+        this.clearFlashes.splice(i, 1);
+      }
+    }
+  }
 
   /** Outline and top tile for a settled block, per the chosen block style. */
   private decorate(mesh: Mesh, color: number): void {

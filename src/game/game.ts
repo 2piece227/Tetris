@@ -92,8 +92,11 @@ export class Game {
 
   /** Fired whenever the visible state changes (renderer redraws). */
   onChange: (() => void) | null = null;
-  /** Fired when n>0 layers clear (for sound/juice). */
-  onClear: ((n: number) => void) | null = null;
+  /**
+   * Fired when n>0 layers clear (for sound/juice), with the heights they were
+   * at — already gone from the grid by now, so this is the only record of where.
+   */
+  onClear: ((n: number, layers: number[]) => void) | null = null;
   /** Fired once when the game ends. */
   onGameOver: (() => void) | null = null;
   /** Fired on a successful sideways move (for sound). */
@@ -274,13 +277,14 @@ export class Game {
     const r = this.rules;
     this.grid.lock(this.cells, this.pos, this.current.color);
     this.onLock?.();
+    const full = this.grid.fullLayers();
     const n = this.grid.clearFullLayers();
     if (n > 0) {
       this.score += (r.layerScore[Math.min(n, r.layerScore.length - 1)] ?? 0) * this.level;
       this.layers += n;
       this.level = 1 + Math.floor(this.layers / r.layersPerLevel);
       this.timeLeftMs += n * r.timeBonusPerLayerMs;
-      this.onClear?.(n);
+      this.onClear?.(n, full);
     }
     // After the clear so a player is not handed layers they just removed, and
     // before the spawn so the new piece is checked against the raised stack.

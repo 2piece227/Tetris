@@ -8,7 +8,7 @@ import {
   Vector3,
   Viewport,
 } from "@babylonjs/core";
-import { LAYER_1P, LAYER_2P } from "./config";
+import { CELL, DEPTH_FOG, LAYER_1P, LAYER_2P, WELL } from "./config";
 import type { Game } from "../game/game";
 import { PlayerView } from "./playerView";
 
@@ -38,6 +38,20 @@ export class Renderer {
     hemi.groundColor = new Color3(0.08, 0.1, 0.18);
     const dir = new DirectionalLight("dir", new Vector3(-0.3, -1, -0.45), this.scene);
     dir.intensity = 0.7;
+
+    if (DEPTH_FOG) {
+      // Fog from the mouth down, so the deeper a layer the darker it reads:
+      // depth as shade, on top of each layer's own colour. Starts at the mouth
+      // and leaves the floor at about 40% — fading into the background colour
+      // rather than to black, so nothing deep vanishes outright.
+      const eye = this.p1.camera.position.y;
+      const mouth = eye - WELL.h * CELL;
+      const keep = 0.4;
+      this.scene.fogMode = Scene.FOGMODE_LINEAR;
+      this.scene.fogColor = new Color3(0.015, 0.02, 0.038);
+      this.scene.fogStart = mouth;
+      this.scene.fogEnd = (eye - keep * mouth) / (1 - keep);
+    }
 
     window.addEventListener("resize", () => this.engine.resize());
     this.engine.runRenderLoop(() => this.scene.render());

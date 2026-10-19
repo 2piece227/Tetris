@@ -101,7 +101,13 @@ game.onRotateBlocked = (cells, pos) => {
   renderer.showBlocked(cells, pos);
 };
 game.onLock = () => sfx.lock();
-game.onClear = (n) => sfx.clear(n);
+game.onClear = (n, layers) => {
+  sfx.clear(n);
+  // The layers are already gone from the grid; light up where they were for a
+  // beat, so a clear reads as something happening rather than blocks vanishing.
+  renderer.flashLayers(layers);
+  window.setTimeout(() => renderer.flashLayers([]), 260);
+};
 game.onGameOver = () => {
   sfx.gameOver();
   ui.showGameOver(game);

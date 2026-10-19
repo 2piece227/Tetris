@@ -46,6 +46,12 @@ export class Hud {
         fill.className = "fill";
         fill.style.background = hex(layerColor(layer));
         slot.appendChild(fill);
+        // Numbered from the floor, so a colour in the well can be matched to
+        // a layer by reading the gauge rather than by guessing at depth.
+        const num = document.createElement("span");
+        num.className = "num";
+        num.textContent = String(layer + 1);
+        slot.appendChild(num);
         gauge.appendChild(slot);
         this.fills[side][layer] = fill;
 
@@ -77,12 +83,27 @@ export class Hud {
         this.lastNext[side] = key;
       }
 
+      // The layers the piece in hand will come to rest in. From straight
+      // above, "which layer is this" is the hardest question on screen; the
+      // gauge answers it for the one piece that matters.
+      let landLo = Infinity;
+      let landHi = -Infinity;
+      if (!g.gameOver) {
+        const gp = g.ghostPos();
+        for (const c of g.cells) {
+          landLo = Math.min(landLo, gp.y + c.y);
+          landHi = Math.max(landHi, gp.y + c.y);
+        }
+      }
+
       let danger = false;
       for (let layer = 0; layer < WELL.h; layer++) {
         const frac = g.grid.layerFill(layer) / g.grid.layerCells;
         // Any block at all has to be visible, so an occupied layer starts well
         // clear of transparent rather than fading in from nothing.
-        this.fills[side][layer].style.opacity = frac === 0 ? "0" : String(0.35 + 0.65 * frac);
+        const fill = this.fills[side][layer];
+        fill.style.opacity = frac === 0 ? "0" : String(0.35 + 0.65 * frac);
+        fill.parentElement!.classList.toggle("land", layer >= landLo && layer <= landHi);
         if (frac > 0 && layer >= WELL.h - DANGER_LAYERS) danger = true;
       }
       $(`half${side}`).classList.toggle("danger", danger);

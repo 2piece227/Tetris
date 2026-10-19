@@ -70,6 +70,13 @@ export class Grid {
     }
   }
 
+  /** Heights of the layers that are completely filled, lowest first. */
+  fullLayers(): number[] {
+    const out: number[] = [];
+    for (let y = 0; y < this.h; y++) if (this.isLayerFull(y)) out.push(y);
+    return out;
+  }
+
   // Remove every completely-filled horizontal layer and let the blocks above
   // fall down by the number of layers removed. Returns how many were cleared.
   clearFullLayers(): number {

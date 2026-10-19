@@ -194,8 +194,9 @@ for (const me of players) {
       renderer.p1.showBlocked(cells, pos);
     };
   }
-  me.onClear = (n) => {
+  me.onClear = (n, layers) => {
     sfx.clear(n);
+    view.flashClear(layers);
     other.receiveGarbage(n);
     tally.sent[side] += n;
     hud.flashAttack(side, n);

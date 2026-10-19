@@ -60,7 +60,16 @@
       .bar { display: flex; flex-direction: column; gap: 3px; }
       .bar .slot { width: 18px; height: clamp(14px, 3vh, 26px); border-radius: 4px; background: rgba(10,14,28,0.75); border: 1px solid #232c52; overflow: hidden; }
       .bar .slot.top { border-color: rgba(255,90,90,0.45); }
+      .bar .slot { position: relative; }
       .bar .fill { width: 100%; height: 100%; opacity: 0; transition: opacity 0.15s; }
+      .bar .num {
+        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 10px; font-weight: 800; color: rgba(255,255,255,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+      }
+      .bar .slot { width: 22px; }
+      /* Where the piece in hand will land. */
+      .bar .slot.land { border: 2px solid #ffffff; box-shadow: 0 0 8px rgba(255,255,255,0.6); }
+      .bar .slot.land .num { color: #ffffff; }
       .attack .slot { width: 8px; border-color: rgba(255,90,90,0.18); background: rgba(10,14,28,0.5); transition: background 0.15s; }
       .attack .slot.on { background: #ff5a5a; border-color: #ff8a8a; }
       .attack.armed .slot.on { animation: pending 0.6s ease-in-out infinite alternate; }
