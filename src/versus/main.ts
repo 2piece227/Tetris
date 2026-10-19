@@ -179,9 +179,15 @@ for (const me of players) {
   me.onChange = draw;
   // The machine's moves stay silent: two sets of blips at once is noise, and
   // the player should only hear their own hands.
+  const view = me === human ? renderer.p1 : renderer.p2;
+  // Both wells play their turns out, so the opponent's moves read as turns too.
+  me.onRotate = (axis, dir, shift) => view.beginRotation(axis, dir, shift);
   if (me === human) {
     me.onMove = () => sfx.move();
-    me.onRotate = () => sfx.rotate();
+    me.onRotate = (axis, dir, shift) => {
+      sfx.rotate();
+      view.beginRotation(axis, dir, shift);
+    };
     me.onLock = () => sfx.lock();
     me.onRotateBlocked = (cells, pos) => {
       sfx.blocked();

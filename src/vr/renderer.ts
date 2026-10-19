@@ -1,7 +1,5 @@
 import {
   ArcRotateCamera,
-  Matrix,
-  Quaternion,
   Color3,
   Color4,
   DirectionalLight,
@@ -18,21 +16,12 @@ import {
 } from "@babylonjs/core";
 import { CELL, WELL, WELL_ANCHOR, XR_DISTANCE } from "./config";
 import { boxCentre, type Game } from "../game/game";
-import { Axis, IVec3, rotate } from "../game/vec";
+import type { Axis, IVec3 } from "../game/vec";
+import { TurnAnimator } from "../render/turnAnimator";
 import { TANK_H, buildPedestal, buildRoom, buildTank } from "./environment";
 
 const { w, d } = WELL;
 
-/**
- * How long a quarter turn takes on screen.
- *
- * The logic rotates instantly; this is only the picture catching up. Without it
- * the piece teleports between orientations, and from a fixed viewpoint there is
- * no way to tell a turn about one axis from a turn about another — you are left
- * inferring what happened from the result. Long enough to read, short enough
- * that it never gates the next input.
- */
-const ROTATE_ANIM_MS = 130;
 
 /** How long a turn that would not fit stays on screen, in red. */
 const BLOCKED_MS = 320;
@@ -90,9 +79,7 @@ export class Renderer {
 
   /** The live piece hangs off this so a rotation can actually turn it. */
   readonly pieceRoot: TransformNode;
-  private rotAnim: { from: Quaternion; slide: Vector3; startedAt: number } | null = null;
-  /** Where pieceRoot sits once any turn has finished playing out. */
-  private readonly pieceRest = new Vector3();
+  private readonly turns: TurnAnimator;
 
   private readonly solidPool: Mesh[] = [];
   private readonly piecePool: Mesh[] = [];
@@ -123,7 +110,7 @@ export class Renderer {
     this.wellRoot = new TransformNode("wellRoot", this.scene);
     this.pieceRoot = new TransformNode("pieceRoot", this.scene);
     this.pieceRoot.parent = this.wellRoot;
-    this.pieceRoot.rotationQuaternion = Quaternion.Identity();
+    this.turns = new TurnAnimator(this.pieceRoot, CELL);
 
     this.camera = new ArcRotateCamera(
       "cam",
@@ -190,7 +177,6 @@ export class Renderer {
     this.buildNextPlinth();
     this.placeForDesktop();
 
-    this.scene.onBeforeRenderObservable.add(() => this.stepRotation());
 
     window.addEventListener("resize", () => this.engine.resize());
     this.engine.runRenderLoop(() => this.scene.render());
@@ -316,10 +302,7 @@ export class Renderer {
     let live = 0;
     if (!game.gameOver) {
       const mid = boxCentre(game.cells);
-      this.pieceRest.copyFrom(
-        cellToLocal(game.pos.x + mid.x, game.pos.y + mid.y, game.pos.z + mid.z)
-      );
-      if (!this.rotAnim) this.pieceRoot.position.copyFrom(this.pieceRest);
+      this.turns.setRest(cellToLocal(game.pos.x + mid.x, game.pos.y + mid.y, game.pos.z + mid.z));
       for (const c of game.cells) {
         const mesh = this.borrow(this.piecePool, this.solidMaster, live++, this.pieceRoot);
         mesh.position.set((c.x - mid.x) * CELL, (c.y - mid.y) * CELL, (c.z - mid.z) * CELL);
@@ -471,67 +454,9 @@ export class Renderer {
     this.hideFrom(this.nextPool, n);
   }
 
-  /**
-   * Begin the visual catching up to a rotation the logic has already applied.
-   *
-   * The quarter turn is derived from rotate() itself rather than written out by
-   * hand, so the picture cannot disagree with the rule it is illustrating.
-   */
-  beginRotation(axis: Axis, dir: 1 | -1, shift: IVec3 = { x: 0, y: 0, z: 0 }): void {
-    const img = (x: number, y: number, z: number) => rotate({ x, y, z }, axis, dir);
-    const rx = img(1, 0, 0);
-    const ry = img(0, 1, 0);
-    const rz = img(0, 0, 1);
-    const applied = Quaternion.FromRotationMatrix(
-      Matrix.FromValues(
-        rx.x, rx.y, rx.z, 0,
-        ry.x, ry.y, ry.z, 0,
-        rz.x, rz.y, rz.z, 0,
-        0, 0, 0, 1
-      )
-    );
-    // Start the picture where the piece *was* and let it turn into where the
-    // logic has already put it. Composed against whatever is on screen right
-    // now, so a turn arriving mid-animation continues from there instead of
-    // snapping back to square one.
-    const current = this.pieceRoot.rotationQuaternion ?? Quaternion.Identity();
-    // A wall kick moved the piece as well as turning it. Start the picture
-    // back where it was and let it slide over, so a kick reads as being
-    // pushed off the wall rather than as a jump.
-    const fromSlide = this.rotAnim
-      ? this.pieceRoot.position.subtract(this.pieceRest)
-      : Vector3.Zero();
-    this.rotAnim = {
-      from: Quaternion.Inverse(applied).multiply(current),
-      slide: fromSlide.subtract(new Vector3(shift.x * CELL, shift.y * CELL, shift.z * CELL)),
-      startedAt: performance.now(),
-    };
-  }
-
-  /**
-   * Driven off the wall clock rather than the engine delta. getDeltaTime
-   * reports zero whenever the render loop is not genuinely running — a
-   * backgrounded tab, a stalled frame — and an animation measured that way
-   * never advances, leaving the piece drawn in the orientation it has already
-   * left. The clock cannot stall.
-   */
-  private stepRotation(): void {
-    const a = this.rotAnim;
-    if (!a) return;
-    const t = Math.min(1, (performance.now() - a.startedAt) / ROTATE_ANIM_MS);
-    const eased = 1 - (1 - t) * (1 - t); // ease out; the turn settles rather than stops dead
-    Quaternion.SlerpToRef(
-      a.from,
-      Quaternion.Identity(),
-      eased,
-      this.pieceRoot.rotationQuaternion!
-    );
-    this.pieceRoot.position.copyFrom(this.pieceRest.add(a.slide.scale(1 - eased)));
-    if (t >= 1) {
-      this.pieceRoot.rotationQuaternion!.copyFrom(Quaternion.Identity());
-      this.pieceRoot.position.copyFrom(this.pieceRest);
-      this.rotAnim = null;
-    }
+  /** Begin the picture catching up to a turn the logic has already applied. */
+  beginRotation(axis: Axis, dir: 1 | -1, shift?: IVec3): void {
+    this.turns.begin(axis, dir, shift);
   }
 
   /**

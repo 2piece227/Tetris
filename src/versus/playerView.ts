@@ -12,15 +12,16 @@ import {
   Viewport,
 } from "@babylonjs/core";
 import { CELL, TOPDOWN, WELL, layerColor } from "./config";
-import type { Game } from "../game/game";
-import type { IVec3 } from "../game/vec";
+import { boxCentre, type Game } from "../game/game";
+import { TurnAnimator } from "../render/turnAnimator";
+import type { Axis, IVec3 } from "../game/vec";
 
 const { w, d, h } = WELL;
 const WELL_H = h * CELL;
 
 /**
- * How settled blocks are drawn. TEMPORARY: picked with ?blocks=a|b|c|d so the
- * candidates can be compared on the same board before one is kept.
+ * How settled blocks are drawn. b is the default; ?blocks=a|b|c|d switches, so
+ * the candidates can still be compared on the same board.
  *
  *   a — current: dark solid cubes in their layer's colour
  *   b — crisp: brighter, with a dark outline round every cube
@@ -36,7 +37,8 @@ const BLOCK_STYLES = {
   d: { diffuse: 0.5, emissive: 0.35, alpha: 0.3, outline: "color", cap: false },
 } as const;
 const blocksParam = new URLSearchParams(window.location.search).get("blocks");
-const BLOCK = BLOCK_STYLES[(blocksParam && blocksParam in BLOCK_STYLES ? blocksParam : "a") as keyof typeof BLOCK_STYLES];
+/** b was picked (2026-10-20); the others stay reachable by ?blocks= until the choice is final. */
+const BLOCK = BLOCK_STYLES[(blocksParam && blocksParam in BLOCK_STYLES ? blocksParam : "b") as keyof typeof BLOCK_STYLES];
 
 /** grid cell -> position inside this player's wellRoot */
 function cellToLocal(x: number, y: number, z: number): Vector3 {
@@ -60,6 +62,10 @@ export class PlayerView {
   readonly root: TransformNode;
   readonly camera: FreeCamera;
 
+  /** The live piece hangs off this, at its centre, so a turn can be played out. */
+  private readonly pieceRoot: TransformNode;
+  private readonly turns: TurnAnimator;
+
   private readonly solidPool: Mesh[] = [];
   private readonly piecePool: Mesh[] = [];
   private readonly ghostPool: Mesh[] = [];
@@ -79,6 +85,9 @@ export class PlayerView {
     viewport: Viewport
   ) {
     this.root = new TransformNode("wellRoot", scene);
+    this.pieceRoot = new TransformNode("pieceRoot", scene);
+    this.pieceRoot.parent = this.root;
+    this.turns = new TurnAnimator(this.pieceRoot, CELL);
 
     // The Blockout shot: straight down the shaft from above its mouth. Pitching
     // a FreeCamera by rotation sidesteps the gimbal case setTarget hits when the
@@ -194,15 +203,28 @@ export class PlayerView {
       ring(layer * CELL, 0.35 + 0.65 * (layer / h));
     }
 
-    const corners: [number, number][] = [
-      [-hx, -hz],
-      [hx, -hz],
-      [hx, hz],
-      [-hx, hz],
-    ];
-    for (const [cx, cz] of corners) {
-      lines.push([new Vector3(cx, 0, cz), new Vector3(cx, WELL_H, cz)]);
-      colors.push([new Color4(0.2, 0.3, 0.6, 1), new Color4(0.45, 0.6, 1, 1)]);
+    // Blockout's pit: every wall is ruled into cells, so the rings above are
+    // crossed by a post at every cell boundary, not only at the corners. Seen
+    // from above the posts fan out from the floor to the mouth, and a piece's
+    // column can be read straight off the wall it is nearest.
+    const post = (x: number, z: number, corner: boolean): void => {
+      lines.push([new Vector3(x, 0, z), new Vector3(x, WELL_H, z)]);
+      colors.push(
+        corner
+          ? [new Color4(0.2, 0.3, 0.6, 1), new Color4(0.45, 0.6, 1, 1)]
+          : [new Color4(0.1, 0.16, 0.34, 1), new Color4(0.26, 0.38, 0.72, 1)]
+      );
+    };
+    for (let i = 0; i <= w; i++) {
+      const x = -hx + i * CELL;
+      const corner = i === 0 || i === w;
+      post(x, -hz, corner);
+      post(x, hz, corner);
+    }
+    for (let i = 1; i < d; i++) {
+      const z = -hz + i * CELL;
+      post(-hx, z, false);
+      post(hx, z, false);
     }
 
     const floor = new Color4(0.22, 0.3, 0.55, 1);
@@ -251,10 +273,10 @@ export class PlayerView {
     return m;
   }
 
-  private borrow(pool: Mesh[], master: Mesh, i: number): Mesh {
+  private borrow(pool: Mesh[], master: Mesh, i: number, parent?: TransformNode): Mesh {
     let mesh = pool[i];
     if (!mesh) {
-      mesh = master.clone(master.name + "_" + pool.length, this.root)!;
+      mesh = master.clone(master.name + "_" + pool.length, parent ?? this.root)!;
       mesh.isVisible = true;
       mesh.layerMask = this.mask;
       pool.push(mesh);
@@ -305,6 +327,11 @@ export class PlayerView {
     }
   }
 
+  /** Begin the picture catching up to a turn the logic has already applied. */
+  beginRotation(axis: Axis, dir: 1 | -1, shift?: IVec3): void {
+    this.turns.begin(axis, dir, shift);
+  }
+
   /**
    * Show, briefly and in red, the shape a turn would have taken and where.
    * From straight above, a turn that cannot fit otherwise looks exactly like a
@@ -351,11 +378,13 @@ export class PlayerView {
     let guides = 0;
 
     if (!game.gameOver) {
+      // Drawn as offsets from the piece's centre — the point the logic turns
+      // it about — so a turn can be played out by spinning pieceRoot.
+      const mid = boxCentre(game.cells);
+      this.turns.setRest(cellToLocal(game.pos.x + mid.x, game.pos.y + mid.y, game.pos.z + mid.z));
       for (const c of game.cells) {
-        const cage = this.borrow(this.piecePool, this.pieceMaster, p++);
-        cage.position.copyFrom(
-          cellToLocal(game.pos.x + c.x, game.pos.y + c.y, game.pos.z + c.z)
-        );
+        const cage = this.borrow(this.piecePool, this.pieceMaster, p++, this.pieceRoot);
+        cage.position.set((c.x - mid.x) * CELL, (c.y - mid.y) * CELL, (c.z - mid.z) * CELL);
       }
 
       const gp = game.ghostPos();
