@@ -4,20 +4,33 @@ import { PieceDef } from "./pieces";
 import type { Rules } from "./rules";
 import { Axis, IVec3, rotate } from "./vec";
 
-// Wall-kick candidates tried (in order) when a rotation would otherwise
-// collide. Sideways nudges first, then drop the piece down — this is what
-// lets horizontal-axis rotations succeed right at the top of the well, where
-// the rotated cells would otherwise poke through the ceiling.
-const KICKS: IVec3[] = [
-  { x: 0, y: 0, z: 0 },
-  { x: 1, y: 0, z: 0 },
-  { x: -1, y: 0, z: 0 },
-  { x: 0, y: 0, z: 1 },
-  { x: 0, y: 0, z: -1 },
-  { x: 0, y: -1, z: 0 },
-  { x: 0, y: -2, z: 0 },
-  { x: 0, y: -3, z: 0 },
-];
+/**
+ * Where a rotation may push the piece to make it fit, nearest first.
+ *
+ * Sideways up to two cells and down up to three, never up: lifting a piece
+ * would let a player hold it off the stack forever by turning it. Two cells
+ * sideways is what a 4-wide well needs — a long piece turned against one wall
+ * has to travel most of the way to the other. Down comes after sideways at the
+ * same distance, so a turn at the ceiling first tries to stay at its height.
+ */
+const KICKS: IVec3[] = (() => {
+  const out: IVec3[] = [];
+  for (let x = -2; x <= 2; x++)
+    for (let z = -2; z <= 2; z++)
+      for (let y = 0; y >= -3; y--) out.push({ x, y, z });
+  const cost = (k: IVec3): number => Math.abs(k.x) + Math.abs(k.z) + 1.5 * Math.abs(k.y);
+  // Stable order among equal costs, so the same turn always lands the same way.
+  return out.sort((a, b) => cost(a) - cost(b));
+})();
+
+/** Centre of a set of offsets' bounding box. Can fall between cells. */
+export function boxCentre(cells: IVec3[]): IVec3 {
+  const mid = (sel: (c: IVec3) => number): number => {
+    const v = cells.map(sel);
+    return (Math.min(...v) + Math.max(...v)) / 2;
+  };
+  return { x: mid((c) => c.x), y: mid((c) => c.y), z: mid((c) => c.z) };
+}
 
 /**
  * Stored on garbage cells. The versus renderer paints settled blocks by depth,
@@ -37,6 +50,18 @@ export class Game {
   current!: PieceDef;
   cells!: IVec3[]; // current rotated offsets
   pos!: IVec3; // pivot position in the well
+
+  /**
+   * Where the piece's centre is meant to be, in well coordinates.
+   *
+   * Turns happen about the centre of the piece, not about its pivot cell — a
+   * piece turned about a corner swings most of its length sideways and hits
+   * the wall it is standing next to. The centre of a four-long piece falls
+   * between cells, so after a turn it has to be rounded onto the grid; keeping
+   * the unrounded centre here is what brings the piece back to exactly where
+   * it started after four turns instead of letting it walk across the well.
+   */
+  private centre!: IVec3;
   next!: PieceDef;
 
   score = 0;
@@ -73,8 +98,16 @@ export class Game {
   onGameOver: (() => void) | null = null;
   /** Fired on a successful sideways move (for sound). */
   onMove: (() => void) | null = null;
-  /** Fired on a successful rotation, with the turn that was applied. */
-  onRotate: ((axis: Axis, dir: 1 | -1) => void) | null = null;
+  /**
+   * Fired on a successful rotation, with the turn that was applied and how far
+   * the piece's centre moved to fit (a wall kick), in cells.
+   */
+  onRotate: ((axis: Axis, dir: 1 | -1, shift: IVec3) => void) | null = null;
+  /**
+   * Fired when a turn cannot fit anywhere, with the shape it would have taken
+   * and where — so the player can be shown what it hit instead of nothing.
+   */
+  onRotateBlocked: ((cells: IVec3[], pos: IVec3) => void) | null = null;
   /** Fired when a piece settles into the stack (for sound). */
   onLock: (() => void) | null = null;
   /** Fired when garbage is queued against this player, before it rises. */
@@ -147,6 +180,7 @@ export class Game {
       y: h - 1 - maxY,
       z: Math.floor((d - (maxZ - minZ + 1)) / 2) - minZ,
     };
+    this.syncCentre();
     this.dropTimer = 0;
     if (!this.grid.canPlace(this.cells, this.pos)) {
       this.endedBy = "topout";
@@ -156,11 +190,23 @@ export class Game {
     this.onChange?.();
   }
 
+  /** Re-derive the centre from where the piece actually is. */
+  private syncCentre(): void {
+    const c = boxCentre(this.cells);
+    this.centre = { x: this.pos.x + c.x, y: this.pos.y + c.y, z: this.pos.z + c.z };
+  }
+
+  /** Move the piece and its centre together. */
+  private shiftBy(dx: number, dy: number, dz: number): void {
+    this.pos = { x: this.pos.x + dx, y: this.pos.y + dy, z: this.pos.z + dz };
+    this.centre = { x: this.centre.x + dx, y: this.centre.y + dy, z: this.centre.z + dz };
+  }
+
   tryMove(dx: number, dz: number): boolean {
     if (this.gameOver) return false;
     const np = { x: this.pos.x + dx, y: this.pos.y, z: this.pos.z + dz };
     if (this.grid.canPlace(this.cells, np)) {
-      this.pos = np;
+      this.shiftBy(dx, 0, dz);
       this.onMove?.();
       this.onChange?.();
       return true;
@@ -171,16 +217,38 @@ export class Game {
   tryRotate(axis: Axis, dir: 1 | -1): boolean {
     if (this.gameOver) return false;
     const rotated = this.cells.map((c) => rotate(c, axis, dir));
+
+    // Put the turned piece's centre where the old one was, rounded onto the
+    // grid, then look outward from there for the nearest spot it fits.
+    const rc = boxCentre(rotated);
+    // Halves round down in height (never nudging a piece upward) and up
+    // sideways; any fixed rule works, so long as the same turn rounds the same way.
+    const base = {
+      x: Math.round(this.centre.x - rc.x),
+      y: Math.ceil(this.centre.y - rc.y - 0.5),
+      z: Math.round(this.centre.z - rc.z),
+    };
     for (const k of KICKS) {
-      const np = { x: this.pos.x + k.x, y: this.pos.y + k.y, z: this.pos.z + k.z };
+      const np = { x: base.x + k.x, y: base.y + k.y, z: base.z + k.z };
       if (this.grid.canPlace(rotated, np)) {
+        const before = { ...this.centre };
         this.cells = rotated;
         this.pos = np;
-        this.onRotate?.(axis, dir);
+        // The intended centre only moves by the kick. Unkicked, it stays put —
+        // fraction and all — so turning back undoes the rounding exactly.
+        this.centre = { x: before.x + k.x, y: before.y + k.y, z: before.z + k.z };
+        const now = boxCentre(rotated);
+        const shift = {
+          x: np.x + now.x - before.x,
+          y: np.y + now.y - before.y,
+          z: np.z + now.z - before.z,
+        };
+        this.onRotate?.(axis, dir, shift);
         this.onChange?.();
         return true;
       }
     }
+    this.onRotateBlocked?.(rotated, base);
     return false;
   }
 
@@ -188,7 +256,7 @@ export class Game {
   private descend(): boolean {
     const np = { x: this.pos.x, y: this.pos.y - 1, z: this.pos.z };
     if (this.grid.canPlace(this.cells, np)) {
-      this.pos = np;
+      this.shiftBy(0, -1, 0);
       return true;
     }
     return false;

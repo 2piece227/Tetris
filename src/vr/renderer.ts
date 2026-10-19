@@ -17,7 +17,7 @@ import {
   Vector3,
 } from "@babylonjs/core";
 import { CELL, WELL, WELL_ANCHOR, XR_DISTANCE } from "./config";
-import type { Game } from "../game/game";
+import { boxCentre, type Game } from "../game/game";
 import { Axis, IVec3, rotate } from "../game/vec";
 import { TANK_H, buildPedestal, buildRoom, buildTank } from "./environment";
 
@@ -33,6 +33,9 @@ const { w, d } = WELL;
  * that it never gates the next input.
  */
 const ROTATE_ANIM_MS = 130;
+
+/** How long a turn that would not fit stays on screen, in red. */
+const BLOCKED_MS = 320;
 
 // Where the next-piece preview perches, in wellRoot-local space. Beside the
 // tank rather than above it: at 18 layers deep the rim is already near eye
@@ -87,7 +90,9 @@ export class Renderer {
 
   /** The live piece hangs off this so a rotation can actually turn it. */
   readonly pieceRoot: TransformNode;
-  private rotAnim: { from: Quaternion; startedAt: number } | null = null;
+  private rotAnim: { from: Quaternion; slide: Vector3; startedAt: number } | null = null;
+  /** Where pieceRoot sits once any turn has finished playing out. */
+  private readonly pieceRest = new Vector3();
 
   private readonly solidPool: Mesh[] = [];
   private readonly piecePool: Mesh[] = [];
@@ -96,6 +101,9 @@ export class Renderer {
   private readonly nextPool: Mesh[] = [];
   private readonly hintPool: Mesh[] = [];
   private readonly flashPool: Mesh[] = [];
+  private readonly blockedPool: Mesh[] = [];
+  private blockedMaster: Mesh | null = null;
+  private blockedTimer: number | null = null;
 
   private readonly solidMaster: Mesh;
   private readonly ghostMaster: Mesh;
@@ -302,16 +310,19 @@ export class Renderer {
     game.grid.forEachFilled(put);
     this.hideFrom(this.solidPool, s);
 
-    // The live piece is drawn separately, as offsets from its own pivot, so
-    // pieceRoot can spin it in place without disturbing the settled stack.
+    // The live piece is drawn separately, as offsets from its own centre, so
+    // pieceRoot can spin it in place without disturbing the settled stack —
+    // the same centre the logic turns it about.
     let live = 0;
     if (!game.gameOver) {
-      this.pieceRoot.position.copyFrom(
-        cellToLocal(game.pos.x, game.pos.y, game.pos.z)
+      const mid = boxCentre(game.cells);
+      this.pieceRest.copyFrom(
+        cellToLocal(game.pos.x + mid.x, game.pos.y + mid.y, game.pos.z + mid.z)
       );
+      if (!this.rotAnim) this.pieceRoot.position.copyFrom(this.pieceRest);
       for (const c of game.cells) {
         const mesh = this.borrow(this.piecePool, this.solidMaster, live++, this.pieceRoot);
-        mesh.position.set(c.x * CELL, c.y * CELL, c.z * CELL);
+        mesh.position.set((c.x - mid.x) * CELL, (c.y - mid.y) * CELL, (c.z - mid.z) * CELL);
         mesh.material = this.solidMat(game.current.color);
       }
     }
@@ -379,6 +390,35 @@ export class Renderer {
   }
 
   /**
+   * Show, briefly, the shape a turn would have taken and where — in red, so a
+   * turn that cannot fit says what it hit instead of silently doing nothing.
+   */
+  showBlocked(cells: IVec3[], pos: IVec3): void {
+    if (!this.blockedMaster) {
+      this.blockedMaster = this.makeMaster(
+        "blocked",
+        MeshBuilder.CreateBox("blocked", { size: CELL * 0.9 }, this.scene)
+      );
+      const bm = new StandardMaterial("blockedMat", this.scene);
+      bm.diffuseColor = new Color3(1, 0.2, 0.2);
+      bm.emissiveColor = new Color3(0.85, 0.1, 0.1);
+      bm.alpha = 0.45;
+      bm.disableDepthWrite = true;
+      this.blockedMaster.material = bm;
+    }
+    cells.forEach((c, i) => {
+      const mesh = this.borrow(this.blockedPool, this.blockedMaster!, i);
+      mesh.position.copyFrom(cellToLocal(pos.x + c.x, pos.y + c.y, pos.z + c.z));
+    });
+    this.hideFrom(this.blockedPool, cells.length);
+    if (this.blockedTimer !== null) window.clearTimeout(this.blockedTimer);
+    this.blockedTimer = window.setTimeout(() => {
+      this.hideFrom(this.blockedPool, 0);
+      this.blockedTimer = null;
+    }, BLOCKED_MS);
+  }
+
+  /**
    * Light up whole layers — the beat between a layer filling and vanishing,
    * so a clear reads as an event rather than blocks silently going missing.
    */
@@ -437,7 +477,7 @@ export class Renderer {
    * The quarter turn is derived from rotate() itself rather than written out by
    * hand, so the picture cannot disagree with the rule it is illustrating.
    */
-  beginRotation(axis: Axis, dir: 1 | -1): void {
+  beginRotation(axis: Axis, dir: 1 | -1, shift: IVec3 = { x: 0, y: 0, z: 0 }): void {
     const img = (x: number, y: number, z: number) => rotate({ x, y, z }, axis, dir);
     const rx = img(1, 0, 0);
     const ry = img(0, 1, 0);
@@ -455,8 +495,15 @@ export class Renderer {
     // now, so a turn arriving mid-animation continues from there instead of
     // snapping back to square one.
     const current = this.pieceRoot.rotationQuaternion ?? Quaternion.Identity();
+    // A wall kick moved the piece as well as turning it. Start the picture
+    // back where it was and let it slide over, so a kick reads as being
+    // pushed off the wall rather than as a jump.
+    const fromSlide = this.rotAnim
+      ? this.pieceRoot.position.subtract(this.pieceRest)
+      : Vector3.Zero();
     this.rotAnim = {
       from: Quaternion.Inverse(applied).multiply(current),
+      slide: fromSlide.subtract(new Vector3(shift.x * CELL, shift.y * CELL, shift.z * CELL)),
       startedAt: performance.now(),
     };
   }
@@ -479,8 +526,10 @@ export class Renderer {
       eased,
       this.pieceRoot.rotationQuaternion!
     );
+    this.pieceRoot.position.copyFrom(this.pieceRest.add(a.slide.scale(1 - eased)));
     if (t >= 1) {
       this.pieceRoot.rotationQuaternion!.copyFrom(Quaternion.Identity());
+      this.pieceRoot.position.copyFrom(this.pieceRest);
       this.rotAnim = null;
     }
   }

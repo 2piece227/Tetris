@@ -143,9 +143,13 @@ export async function setupXR(
   // Asked for in the player's own frame — tip it away, spin it, keel it over —
   // and resolved against where they are standing. Turning on the spot no longer
   // silently changes what a control does.
+  // Every turn comes from the right hand (stick and A/B), so that is the hand
+  // that buzzes when one cannot fit. The red ghost and the thud say what
+  // happened; the buzz says it happened to you, without looking anywhere.
+  let rightHand: { pulse: (value: number, duration: number) => Promise<boolean> } | null = null;
   const turn = (intent: RotateIntent, d: 1 | -1): void => {
     const r = resolveRotation(intent, d, renderer.viewRelativeYaw());
-    game.tryRotate(r.axis, r.dir);
+    if (!game.tryRotate(r.axis, r.dir)) void rightHand?.pulse(0.6, 70).catch(() => false);
   };
   const yaw = new Flick((d) => turn("spin", d));
   const pitch = new Flick((d) => turn("tip", d));
@@ -206,6 +210,7 @@ export async function setupXR(
       });
 
       if (hand === "right") {
+        rightHand = mc;
         // trigger → hard drop, once per pull and no faster than the cooldown
         let lastDrop = -Infinity;
         onPress(trigger, () => {

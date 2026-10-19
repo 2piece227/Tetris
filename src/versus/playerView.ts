@@ -13,6 +13,7 @@ import {
 } from "@babylonjs/core";
 import { CELL, TOPDOWN, WELL, layerColor } from "./config";
 import type { Game } from "../game/game";
+import type { IVec3 } from "../game/vec";
 
 const { w, d, h } = WELL;
 const WELL_H = h * CELL;
@@ -43,6 +44,9 @@ export class PlayerView {
   private readonly piecePool: Mesh[] = [];
   private readonly ghostPool: Mesh[] = [];
   private readonly guidePool: Mesh[] = [];
+  private readonly blockedPool: Mesh[] = [];
+  private blockedMaster: Mesh | null = null;
+  private blockedTimer: number | null = null;
   private readonly solidMaster: Mesh;
   private readonly pieceMaster: LinesMesh;
   private readonly ghostMaster: Mesh;
@@ -237,6 +241,35 @@ export class PlayerView {
 
   private hideFrom(pool: Mesh[], used: number): void {
     for (let i = used; i < pool.length; i++) pool[i].setEnabled(false);
+  }
+
+  /**
+   * Show, briefly and in red, the shape a turn would have taken and where.
+   * From straight above, a turn that cannot fit otherwise looks exactly like a
+   * key that did nothing — this is the only way to see what it hit.
+   */
+  showBlocked(cells: IVec3[], pos: IVec3): void {
+    if (!this.blockedMaster) {
+      this.blockedMaster = this.master(
+        MeshBuilder.CreateBox("blocked", { size: CELL * 0.86 }, this.scene)
+      );
+      const bm = new StandardMaterial("blockedMat", this.scene);
+      bm.diffuseColor = new Color3(1, 0.2, 0.2);
+      bm.emissiveColor = new Color3(0.9, 0.12, 0.12);
+      bm.alpha = 0.5;
+      bm.disableDepthWrite = true;
+      this.blockedMaster.material = bm;
+    }
+    cells.forEach((c, i) => {
+      const mesh = this.borrow(this.blockedPool, this.blockedMaster!, i);
+      mesh.position.copyFrom(cellToLocal(pos.x + c.x, pos.y + c.y, pos.z + c.z));
+    });
+    this.hideFrom(this.blockedPool, cells.length);
+    if (this.blockedTimer !== null) window.clearTimeout(this.blockedTimer);
+    this.blockedTimer = window.setTimeout(() => {
+      this.hideFrom(this.blockedPool, 0);
+      this.blockedTimer = null;
+    }, 320);
   }
 
   redraw(game: Game): void {

@@ -162,6 +162,11 @@ export class Sfx {
     this.tone(480, 60, { type: "square", gain: 0.18, slideTo: 620 });
   }
 
+  /** A turn that would not fit: low and dull, unlike the bright rotate blip. */
+  blocked(): void {
+    this.tone(120, 110, { type: "square", gain: 0.22, slideTo: 85 });
+  }
+
   lock(): void {
     this.tone(150, 130, { type: "triangle", gain: 0.4, slideTo: 90 });
   }

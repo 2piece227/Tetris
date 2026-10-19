@@ -23,8 +23,17 @@ Babylon.js + WebXR로 만든 블럭아웃 방식 3D 테트리스. 정육면체 �
 - `src/versus/` — 탑다운 분할 화면·층 게이지·대전 진행 (구 1v1-Tetris 저장소에서 이식)
 - `src/review/`, `src/menu/` — 평면 웹페이지
 
-대전 상대는 아직 VR 시연용 자동 플레이어([`autoPlay.ts`](src/game/autoPlay.ts))를
-조금 빠르게 돌린 것이다. 평가 엔진이 들어오면 교체한다.
+대전 상대와 VR 시연은 같은 자동 플레이어([`autoPlay.ts`](src/game/autoPlay.ts))가
+두고, 어디에 둘지는 평가 엔진([`src/engine/placements.ts`](src/engine/placements.ts))이
+정한다. 대전 난이도는 두는 속도와 "최선 대신 차선을 고르는 비율"이다.
+
+### 회전
+
+조각은 **자기 중심**을 축으로 돈다(예전엔 모서리 칸이 축이라 벽 옆에서 조각이
+크게 휘둘러지며 막혔다). 회전한 모양이 걸리면 가까운 순서로 옆 2칸·아래 3칸까지
+밀어서 맞는 자리를 찾고, 위로는 밀지 않는다. 그래도 안 되면 돌리려던 모양을
+빨간 반투명으로 잠깐 보여주고 둔탁한 소리(VR은 오른손 진동까지)를 낸다.
+쌓인 판 위에서 회전이 막히는 비율이 약 13%에서 2% 아래로 줄었다.
 
 ## 실행
 
@@ -52,7 +61,8 @@ Quest 3에서 플레이하려면 같은 Wi-Fi에서 헤드셋 브라우저로 PC
 두는 방식은 밸런스 측정에 썼던 것과 같은 기준이다 — 낮게 놓고, 빈 칸 위를
 덮지 않는다. 잘 두는 게 목적이 아니라 **구경하는 사람 눈에 어설퍼 보이지 않는
 것**이 목적이다. 조절은 [`src/game/autoPlay.ts`](src/game/autoPlay.ts)의
-`DEMO_PACE`(수 놓는 속도)와 점수 가중치.
+`DEMO_PACE`(수 놓는 속도)와 [`src/engine/placements.ts`](src/engine/placements.ts)의
+점수 가중치.
 
 ## 배포 (GitHub Pages, HTTPS 자동)
 

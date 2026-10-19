@@ -1,5 +1,5 @@
 import type { Grid } from "../game/grid";
-import { orientations } from "../game/autoPlay";
+import { orientations } from "../game/orientations";
 import type { IVec3 } from "../game/vec";
 
 /** One way the piece in hand can come to rest. */

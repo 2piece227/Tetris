@@ -1,82 +1,46 @@
+import { rankPlacements } from "../engine/placements";
 import type { Game } from "./game";
-import { Axis, IVec3, rotate } from "./vec";
+import { key, orientations, type Step } from "./orientations";
+import type { IVec3 } from "./vec";
 
-/** One thing the demo player does this beat. */
-type Step =
-  | { kind: "rotate"; axis: Axis; dir: 1 | -1 }
-  | { kind: "move"; dx: number; dz: number }
-  | { kind: "drop" };
-
-export const key = (cells: IVec3[]): string => {
-  const mx = Math.min(...cells.map((c) => c.x));
-  const my = Math.min(...cells.map((c) => c.y));
-  const mz = Math.min(...cells.map((c) => c.z));
-  return cells
-    .map((c) => `${c.x - mx},${c.y - my},${c.z - mz}`)
-    .sort()
-    .join("|");
-};
-
-/**
- * Every orientation the piece can be turned into, with the shortest sequence of
- * quarter turns that gets there.
- *
- * Breadth-first so the demo takes the short way round rather than spinning the
- * piece four times to arrive where two turns would have done — which is what it
- * looks like when a plan is executed without one.
- */
-export function orientations(from: IVec3[]): Map<string, { cells: IVec3[]; path: Step[] }> {
-  const seen = new Map<string, { cells: IVec3[]; path: Step[] }>();
-  const start = from.map((c) => ({ ...c }));
-  seen.set(key(start), { cells: start, path: [] });
-
-  const queue = [key(start)];
-  const axes: Axis[] = ["x", "y", "z"];
-  const dirs: (1 | -1)[] = [1, -1];
-
-  while (queue.length) {
-    const at = seen.get(queue.shift()!)!;
-    for (const axis of axes)
-      for (const dir of dirs) {
-        const next = at.cells.map((c) => rotate(c, axis, dir));
-        const k = key(next);
-        if (seen.has(k)) continue;
-        seen.set(k, { cells: next, path: [...at.path, { kind: "rotate", axis, dir }] });
-        queue.push(k);
-      }
-  }
-  return seen;
-}
-
-/** How fast the machine plays. */
+/** How fast — and how well — the machine plays. */
 export interface Pace {
   /** Milliseconds between one action and the next. */
   beatMs: number;
   /** Longer pause after a piece lands, so play has a beat to it. */
   settleMs: number;
+  /**
+   * Chance, per piece, of settling for a lesser spot than the engine's best:
+   * one picked at random from the better third of the options. 0 plays the
+   * engine's choice every time.
+   */
+  mistakes?: number;
 }
 
 /** The attract reel: slow enough for the queue to follow. */
 export const DEMO_PACE: Pace = { beatMs: 240, settleMs: 750 };
 
 /**
- * Plays the game on its own — the attract screen in VR, and for now the
- * opponent in versus until the evaluation engine replaces it.
+ * Plays the game on its own — the attract screen in VR, and the opponent in
+ * versus.
  *
- * Scored the same way the balance simulations were: land low, and do not roof
- * over empty cells. It is not trying to be a strong player — it is trying to
- * look like someone who knows what they are doing, which mostly means never
- * dropping a piece somewhere obviously silly while a queue is watching.
+ * Where to put each piece is the evaluation engine's call (one move deep, see
+ * src/engine/placements.ts); this class only turns that into the turns and
+ * slides a player would make, one beat at a time, so it reads as somebody
+ * playing rather than as pieces appearing in place.
  */
 export class AutoPlayer {
-  private plan: Step[] = [];
+  /** Turns still to make, then the column to slide to and drop in. */
+  private turns: Step[] = [];
+  private target: { x: number; z: number } | null = null;
   private planningFor: IVec3[] | null = null;
   private nextStepAt = 0;
 
   constructor(private readonly pace: Pace = DEMO_PACE) {}
 
   reset(): void {
-    this.plan = [];
+    this.turns = [];
+    this.target = null;
     this.planningFor = null;
     this.nextStepAt = 0;
   }
@@ -89,70 +53,55 @@ export class AutoPlayer {
   update(game: Game): void {
     if (game.gameOver) return;
 
-    // A new piece (or one moved by gravity into a different shape) needs a plan.
-    if (this.planningFor !== game.cells) {
-      this.plan = this.buildPlan(game);
-      this.planningFor = game.cells;
-    }
+    // A new piece needs a plan.
+    if (this.planningFor !== game.cells) this.buildPlan(game);
 
     const now = performance.now();
     if (now < this.nextStepAt) return;
     this.nextStepAt = now + this.pace.beatMs;
 
-    const step = this.plan.shift();
-    if (!step) return;
-
-    if (step.kind === "rotate") {
-      game.tryRotate(step.axis, step.dir);
+    const turn = this.turns.shift();
+    if (turn && turn.kind === "rotate") {
+      game.tryRotate(turn.axis, turn.dir);
       // Rotation replaces game.cells, so re-anchor without re-planning.
       this.planningFor = game.cells;
-    } else if (step.kind === "move") {
-      game.tryMove(step.dx, step.dz);
-    } else {
-      game.hardDrop();
-      // Hold on the landing before starting the next piece. Without it the
-      // pieces run into one another and the whole thing reads as a machine
-      // dumping blocks rather than as somebody playing.
-      this.nextStepAt = now + this.pace.settleMs;
+      return;
     }
+
+    // Slides are worked out from where the piece is now, not where it was when
+    // the plan was made: a turn about the piece's centre, or a wall kick, moves
+    // the pivot, and a slide counted up front would then overshoot.
+    const t = this.target;
+    const dx = t ? Math.sign(t.x - game.pos.x) : 0;
+    const dz = t ? Math.sign(t.z - game.pos.z) : 0;
+    // Slide one cell a beat so the piece is seen travelling. A slide that will
+    // not go (something in the way) gives up and drops rather than stalling.
+    if ((dx !== 0 || dz !== 0) && game.tryMove(dx, dx !== 0 ? 0 : dz)) return;
+
+    game.hardDrop();
+    // Hold on the landing before starting the next piece. Without it the
+    // pieces run into one another and the whole thing reads as a machine
+    // dumping blocks rather than as somebody playing.
+    this.nextStepAt = now + this.pace.settleMs;
   }
 
-  /** Choose a landing spot, then the turns and slides that reach it. */
-  private buildPlan(game: Game): Step[] {
-    const { w, d, h } = game.rules.well;
-    const options = orientations(game.cells);
-    let best: { score: number; path: Step[]; x: number; z: number } | null = null;
+  /** Choose a landing spot: the turns that reach its shape, and its column. */
+  private buildPlan(game: Game): void {
+    this.planningFor = game.cells;
+    // The engine ranks every resting place; the orientation search knows the
+    // turns that reach each shape. Shapes are matched by their normalised key.
+    const ranked = rankPlacements(game.grid, game.cells);
+    const paths = orientations(game.cells);
 
-    for (const { cells, path } of options.values())
-      for (let x = -3; x < w + 3; x++)
-        for (let z = -3; z < d + 3; z++) {
-          let y = h - 1;
-          while (y >= 0 && !game.grid.canPlace(cells, { x, y, z })) y--;
-          if (y < 0) continue;
-          while (y > 0 && game.grid.canPlace(cells, { x, y: y - 1, z })) y--;
+    let choice = ranked[0];
+    const slip = this.pace.mistakes ?? 0;
+    if (choice && slip > 0 && Math.random() < slip) {
+      const pool = Math.max(2, Math.ceil(ranked.length / 3));
+      choice = ranked[1 + Math.floor(Math.random() * Math.min(pool, ranked.length - 1))] ?? choice;
+    }
 
-          const top = Math.max(...cells.map((c) => y + c.y));
-          let holes = 0;
-          for (const c of cells)
-            for (let yy = y + c.y - 1; yy >= 0; yy--) {
-              if (game.grid.isFilled(x + c.x, yy, z + c.z)) break;
-              holes++;
-            }
-
-          const score = -top * 4 - holes * 12;
-          if (!best || score > best.score) best = { score, path, x, z };
-        }
-
-    if (!best) return [{ kind: "drop" }];
-
-    const steps: Step[] = [...best.path];
-    // Slide one cell at a time so the piece is seen travelling rather than
-    // teleporting to its column.
-    for (let i = 0; i < Math.abs(best.x - game.pos.x); i++)
-      steps.push({ kind: "move", dx: Math.sign(best.x - game.pos.x), dz: 0 });
-    for (let i = 0; i < Math.abs(best.z - game.pos.z); i++)
-      steps.push({ kind: "move", dx: 0, dz: Math.sign(best.z - game.pos.z) });
-    steps.push({ kind: "drop" });
-    return steps;
+    const path = choice ? paths.get(key(choice.cells))?.path : undefined;
+    this.turns = path ? [...path] : [];
+    this.target = choice && path ? { x: choice.pos.x, z: choice.pos.z } : null;
   }
 }

@@ -92,9 +92,13 @@ demoGame.onGameOver = () => {
   demoGame.reset();
 };
 game.onMove = () => sfx.move();
-game.onRotate = (axis, dir) => {
+game.onRotate = (axis, dir, shift) => {
   sfx.rotate();
-  renderer.beginRotation(axis, dir);
+  renderer.beginRotation(axis, dir, shift);
+};
+game.onRotateBlocked = (cells, pos) => {
+  sfx.blocked();
+  renderer.showBlocked(cells, pos);
 };
 game.onLock = () => sfx.lock();
 game.onClear = (n) => sfx.clear(n);
