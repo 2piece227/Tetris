@@ -18,6 +18,8 @@ export interface WellSize {
  * the numbers in one object per mode is what lets both live in one Game class.
  */
 export interface Rules {
+  /** Which rule set, so a recorded round can be replayed under the same one. */
+  id: "vr" | "versus";
   well: WellSize;
 
   /** Gravity: ms between automatic one-step drops at level 1. */
@@ -47,6 +49,7 @@ export interface Rules {
 const LAYER_SCORE = [0, 100, 300, 600, 1000, 1500] as const;
 
 export const VR_RULES: Rules = {
+  id: "vr",
   // A deep well is the cheapest difficulty knob there is: it does not make the
   // game easier to understand, it just buys the player far more room to be bad
   // before the round ends. That is what a one-at-a-time booth queue needs.
@@ -75,6 +78,7 @@ export const VR_RULES: Rules = {
 };
 
 export const VERSUS_RULES: Rules = {
+  id: "versus",
   // Twelve layers rather than VR's eighteen. A versus round wants to be decided
   // in a couple of minutes, and a shallow well is what forces that.
   well: { w: 4, d: 4, h: 12 },
@@ -96,3 +100,5 @@ export const VERSUS_RULES: Rules = {
 
   tiers: VERSUS_TIERS,
 };
+
+export const RULES_BY_ID: Record<Rules["id"], Rules> = { vr: VR_RULES, versus: VERSUS_RULES };

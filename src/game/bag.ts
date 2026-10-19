@@ -1,4 +1,5 @@
 import { PieceDef, Tier, tierIndexFor } from "./pieces";
+import { seeded } from "./random";
 
 /**
  * A piece sequence, readable by position.
@@ -39,7 +40,7 @@ export class PieceFeed {
   constructor(
     private readonly tiers: Tier[],
     private readonly difficultyScore: () => number,
-    private readonly rand: () => number = Math.random
+    private rand: () => number = Math.random
   ) {}
 
   get tierIndex(): number {
@@ -56,8 +57,14 @@ export class PieceFeed {
     return this.seq[i];
   }
 
-  /** Start a fresh sequence. Shared feeds: once per round, not once per player. */
-  reset(): void {
+  /**
+   * Start a fresh sequence. Shared feeds: once per round, not once per player.
+   * With a seed the sequence is fixed by it — the same seed deals the same
+   * pieces, as long as the score crosses the tiers at the same moments, which
+   * it does when the same placements are replayed.
+   */
+  reset(seed?: number): void {
+    if (seed !== undefined) this.rand = seeded(seed);
     this.seq.length = 0;
     this.queue.length = 0;
     this.tier = -1;

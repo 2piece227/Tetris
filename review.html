@@ -27,6 +27,10 @@
       .entry button:disabled { opacity: 0.4; cursor: default; }
       #status { min-height: 1.6em; color: var(--muted); font-size: 15px; text-align: center; line-height: 1.6; }
       .entry-note { color: var(--faint); font-size: 13.5px; margin-top: 18px; text-align: center; }
+      #status .link {
+        margin-top: 8px; font: inherit; font-size: 14px; color: var(--accent); background: none;
+        border: 1px solid var(--line-hi); border-radius: 8px; padding: 6px 14px; cursor: pointer;
+      }
 
       /* ─── Report ─────────────────────────────────────────────────────────── */
       #report { display: none; }
@@ -148,7 +152,7 @@
         <button type="submit" id="submit" disabled>리뷰 보기</button>
         <div id="status" role="status"></div>
       </form>
-      <p class="entry-note">기록 서버가 아직 없어서, 지금은 어떤 코드를 넣어도 샘플 판의 리뷰가 열려요.</p>
+      <p class="entry-note">지금은 VR을 한 같은 기기에서만 코드로 판을 찾을 수 있어요. 부스용 기록 서버는 준비 중이에요.</p>
     </div>
 
     <div id="report">
@@ -157,7 +161,7 @@
       <aside class="side glass">
         <div class="top">
           <a class="back" href="./review.html">← 다른 코드</a>
-          <span class="sample-badge" title="기록 서버와 엔진이 연결되기 전까지는 자동으로 만든 판을 보여줘요">샘플 데이터</span>
+          <span class="sample-badge" id="sampleBadge" title="기록 서버와 엔진이 연결되기 전까지는 자동으로 만든 판을 보여줘요">샘플 데이터</span>
         </div>
 
         <section>

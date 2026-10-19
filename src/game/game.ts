@@ -1,6 +1,8 @@
+import type { GameRecord, InputRecord, MoveRecord } from "../record/record";
 import { PieceFeed } from "./bag";
 import { Grid } from "./grid";
 import { PieceDef } from "./pieces";
+import { newSeed, seeded } from "./random";
 import type { Rules } from "./rules";
 import { Axis, IVec3, rotate } from "./vec";
 
@@ -78,6 +80,22 @@ export class Game {
   /** Why the round ended, for the game-over panel. */
   endedBy: "topout" | "timeout" | null = null;
 
+  /**
+   * The seed this round was dealt from. With the moves in the record it is
+   * all it takes to rebuild every board of the round, for the review.
+   */
+  seed!: number;
+  /** Garbage holes come from here, so a replay of a versus round can match. */
+  private garbageRand: () => number = Math.random;
+
+  /** Time played this round, advanced by tick. Inputs are stamped with it. */
+  private elapsedMs = 0;
+  private startedAt = Date.now();
+  private moves: MoveRecord[] = [];
+  private inputs: InputRecord[] = [];
+  private spawnedAtMs = 0;
+  private hardDropping = false;
+
   private dropTimer = 0;
 
   /**
@@ -123,13 +141,45 @@ export class Game {
    * leave it out and the game deals from a feed of its own, escalating on its
    * own score.
    */
-  constructor(readonly rules: Rules, feed?: PieceFeed) {
+  constructor(readonly rules: Rules, feed?: PieceFeed, seed: number = newSeed()) {
     this.grid = new Grid(rules.well);
     this.ownsFeed = !feed;
     this.feed = feed ?? new PieceFeed(rules.tiers, () => this.score);
     this.timeLeftMs = rules.roundTimeMs ?? Infinity;
+    this.reseed(seed);
     this.next = this.feed.at(this.cursor++);
     this.spawn();
+  }
+
+  /** A shared feed is seeded by whoever owns the round, not by each game. */
+  private reseed(seed: number): void {
+    this.seed = seed >>> 0;
+    if (this.ownsFeed) this.feed.reset(this.seed);
+    this.garbageRand = seeded(this.seed ^ 0x9e3779b9);
+  }
+
+  /** The round so far, in the form the review rebuilds it from. */
+  toRecord(): GameRecord {
+    return {
+      v: 1,
+      rules: this.rules.id,
+      seed: this.seed,
+      startedAt: this.startedAt,
+      durationMs: Math.round(this.elapsedMs),
+      endedBy: this.endedBy,
+      score: this.score,
+      layers: this.layers,
+      moves: this.moves.map((m) => ({ ...m, inputs: [...m.inputs] })),
+    };
+  }
+
+  private log(input: InputRecord): void {
+    this.inputs.push(input);
+  }
+
+  /** Round time in whole milliseconds, for stamping records. */
+  private get now(): number {
+    return Math.round(this.elapsedMs);
   }
 
   /**
@@ -185,6 +235,8 @@ export class Game {
     };
     this.syncCentre();
     this.dropTimer = 0;
+    this.inputs = [];
+    this.spawnedAtMs = this.now;
     if (!this.grid.canPlace(this.cells, this.pos)) {
       this.endedBy = "topout";
       this.gameOver = true;
@@ -208,7 +260,9 @@ export class Game {
   tryMove(dx: number, dz: number): boolean {
     if (this.gameOver) return false;
     const np = { x: this.pos.x + dx, y: this.pos.y, z: this.pos.z + dz };
-    if (this.grid.canPlace(this.cells, np)) {
+    const ok = this.grid.canPlace(this.cells, np);
+    this.log({ t: this.now, k: "move", dx, dz, ok });
+    if (ok) {
       this.shiftBy(dx, 0, dz);
       this.onMove?.();
       this.onChange?.();
@@ -246,11 +300,13 @@ export class Game {
           y: np.y + now.y - before.y,
           z: np.z + now.z - before.z,
         };
+        this.log({ t: this.now, k: "turn", axis, dir, ok: true });
         this.onRotate?.(axis, dir, shift);
         this.onChange?.();
         return true;
       }
     }
+    this.log({ t: this.now, k: "turn", axis, dir, ok: false });
     this.onRotateBlocked?.(rotated, base);
     return false;
   }
@@ -267,14 +323,26 @@ export class Game {
 
   hardDrop(): void {
     if (this.gameOver) return;
+    this.log({ t: this.now, k: "drop" });
     while (this.descend()) {
       /* keep falling */
     }
+    this.hardDropping = true;
     this.lock();
+    this.hardDropping = false;
   }
 
   private lock(): void {
     const r = this.rules;
+    this.moves.push({
+      piece: this.current.name,
+      spawnMs: this.spawnedAtMs,
+      lockMs: this.now,
+      cells: this.cells.map((c) => ({ ...c })),
+      pos: { ...this.pos },
+      hardDrop: this.hardDropping,
+      inputs: this.inputs,
+    });
     this.grid.lock(this.cells, this.pos, this.current.color);
     this.onLock?.();
     const full = this.grid.fullLayers();
@@ -307,8 +375,8 @@ export class Game {
     const { w, d } = this.rules.well;
     this.pendingGarbage.push({
       lines,
-      holeX: Math.floor(Math.random() * w),
-      holeZ: Math.floor(Math.random() * d),
+      holeX: Math.floor(this.garbageRand() * w),
+      holeZ: Math.floor(this.garbageRand() * d),
     });
     this.onGarbageQueued?.(lines);
   }
@@ -333,6 +401,7 @@ export class Game {
 
   tick(dtMs: number): void {
     if (this.gameOver) return;
+    this.elapsedMs += dtMs;
 
     if (this.rules.roundTimeMs !== null) {
       this.timeLeftMs -= dtMs;
@@ -355,7 +424,16 @@ export class Game {
     }
   }
 
-  reset(): void {
+  /**
+   * Start a new round. A game that deals from its own feed reshuffles it from
+   * `seed`; one sharing a feed leaves that to the round's owner, which must
+   * reset the feed with the same seed.
+   */
+  reset(seed: number = newSeed()): void {
+    this.reseed(seed);
+    this.elapsedMs = 0;
+    this.startedAt = Date.now();
+    this.moves = [];
     this.grid.reset();
     this.score = 0;
     this.level = 1;
@@ -365,8 +443,6 @@ export class Game {
     this.timeLeftMs = this.rules.roundTimeMs ?? Infinity;
     this.softDropping = false;
     this.pendingGarbage.length = 0;
-    // A shared feed is reset once per round by whoever owns the round.
-    if (this.ownsFeed) this.feed.reset();
     this.cursor = 0;
     this.next = this.feed.at(this.cursor++);
     this.spawn();

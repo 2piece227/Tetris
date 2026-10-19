@@ -5,6 +5,7 @@ import { VR_RULES } from "../game/rules";
 import { attachKeyboard } from "./keyboard";
 import { setupXR } from "./xr";
 import { Renderer } from "./renderer";
+import { recordStore } from "../record/store";
 import { VrUi } from "./vrui";
 
 const canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
@@ -110,7 +111,15 @@ game.onClear = (n, layers) => {
 };
 game.onGameOver = () => {
   sfx.gameOver();
+  ui.setReviewCode(null);
   ui.showGameOver(game);
+  // Keep the round for the review and show its code. A round abandoned with Y
+  // never gets here, so only finished rounds are kept.
+  const round = game.seed;
+  void recordStore.save(game.toRecord()).then((code) => {
+    // A restart while saving must not put the old round's code on the new one.
+    if (game.gameOver && game.seed === round) ui.setReviewCode(code);
+  });
 };
 
 attachKeyboard(game, sfx, () => renderer.viewRelativeYaw(), restart, noteInput);

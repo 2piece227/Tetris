@@ -1,6 +1,7 @@
 import { Renderer, type DrawState } from "../vr/renderer";
 import { LABELS, LABEL_ORDER } from "./labels";
-import { sampleReview, type Review, type Turn } from "./sample";
+import type { Review, Turn } from "./analysis";
+import { sampleReview } from "./sample";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const hex = (c: number): string => "#" + c.toString(16).padStart(6, "0");
@@ -47,6 +48,7 @@ export function openReport(review: Review = sampleReview()): void {
   let drop: { startedAt: number; restY: number } | null = null;
 
   // ── Side panel ────────────────────────────────────────────────────────
+  $("sampleBadge").style.display = review.sample ? "" : "none";
   $("sScore").textContent = review.score.toLocaleString("ko-KR");
   $("sLayers").textContent = String(review.layers);
   $("sAcc").textContent = `${review.accuracy}%`;
@@ -59,7 +61,7 @@ export function openReport(review: Review = sampleReview()): void {
   $("meters").innerHTML = review.indicators
     .map(
       (m) => `<div class="meter">
-        <div class="row1"><span>${m.name}${m.sample ? "<em>샘플</em>" : ""}</span><b>${m.value}%</b></div>
+        <div class="row1"><span>${m.name}${m.sample ? "<em>샘플</em>" : ""}</span><b>${m.display}</b></div>
         <div class="bar"><div style="width:${m.value}%"></div></div>
         <p>${m.note}</p>
       </div>`

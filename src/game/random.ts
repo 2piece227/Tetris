@@ -15,3 +15,8 @@ export function seeded(seed: number): () => number {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+/** A fresh seed for a new round. Recorded with the round, so it can be replayed. */
+export function newSeed(): number {
+  return (Math.random() * 2 ** 32) >>> 0;
+}

@@ -86,6 +86,7 @@ export class VrUi {
   private readonly tierLabel: TextBlock;
   private readonly gameOver: Panel;
   private readonly gameOverScore: TextBlock;
+  private readonly reviewCode: TextBlock;
 
   constructor(scene: Scene, parent: TransformNode, onRestart: () => void) {
     this.buildHelp(scene, parent);
@@ -183,7 +184,7 @@ export class VrUi {
       parent,
       "uiGameOver",
       0.44,
-      0.3,
+      0.36,
       // Near eye height and half a metre out. Lower or closer than this and the
       // player is reading a panel at a steep downward angle from 30cm away,
       // which is uncomfortable to focus on in a headset.
@@ -202,6 +203,13 @@ export class VrUi {
     this.gameOverScore = text("점수 0", 62, "#aab4e0");
     this.gameOverScore.height = "100px";
     overStack.addControl(this.gameOverScore);
+
+    // The code the player takes to the monitor for their review. Big, because
+    // it has to survive being read once and remembered while the headset
+    // comes off.
+    this.reviewCode = text("", 84, "#7cf0c0", { bold: true });
+    this.reviewCode.height = "120px";
+    overStack.addControl(this.reviewCode);
 
     const btn = Button.CreateSimpleButton("restart", "다시 시작");
     btn.width = "460px";
@@ -302,6 +310,11 @@ export class VrUi {
     this.gameOverScore.text =
       (game.endedBy === "timeout" ? "시간 종료 · " : "") + `점수 ${game.score}`;
     this.gameOver.plane.setEnabled(true);
+  }
+
+  /** The review code, once the round has been saved; null clears it. */
+  setReviewCode(code: string | null): void {
+    this.reviewCode.text = code ? `리뷰 코드  ${code}` : "";
   }
 
   hideGameOver(): void {

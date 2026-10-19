@@ -36,9 +36,30 @@ boxes[0].focus();
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   if (code().length !== boxes.length) return;
-  // Nothing to look the code up in yet — game records are not saved anywhere
-  // until the booth's record server exists — so every code opens the sample.
-  // Loaded on demand: the entry screen should not wait on the 3D engine.
-  status.textContent = "불러오는 중…";
-  void import("./report").then(({ openReport }) => openReport());
+  void lookUp(code());
 });
+
+/**
+ * Find the round behind a code and open its review. Loaded on demand: the
+ * entry screen should not wait on the 3D engine.
+ */
+async function lookUp(c: string): Promise<void> {
+  status.textContent = "불러오는 중…";
+  const [{ recordStore }, { reviewFromRecord }, { openReport }] = await Promise.all([
+    import("../record/store"),
+    import("./analysis"),
+    import("./report"),
+  ]);
+  const record = await recordStore.load(c);
+  if (!record) {
+    status.innerHTML = `코드 ${c}로 저장된 판을 찾을 수 없어요.<br /><button type="button" class="link" id="showSample">샘플 리뷰 보기</button>`;
+    document.getElementById("showSample")!.addEventListener("click", () => openReport());
+    return;
+  }
+  const { review, problem } = reviewFromRecord(record);
+  if (!review) {
+    status.textContent = `이 판의 리뷰를 만들 수 없어요: ${problem}`;
+    return;
+  }
+  openReport(review);
+}

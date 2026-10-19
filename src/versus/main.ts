@@ -3,6 +3,7 @@ import { keepOffHeadset } from "../device";
 import { AutoPlayer, type Pace } from "../game/autoPlay";
 import { PieceFeed } from "../game/bag";
 import { Game } from "../game/game";
+import { newSeed } from "../game/random";
 import { VERSUS_RULES } from "../game/rules";
 import "../menu/page.css";
 import { Hud, type Tally } from "./hud";
@@ -99,8 +100,11 @@ function draw(): void {
 }
 
 function resetBoards(): void {
-  feed.reset(); // once per round, before the players rewind their cursors
-  for (const g of players) g.reset();
+  // One seed for the round: it deals the shared sequence and is recorded by
+  // both games. The feed first, before the players rewind their cursors.
+  const seed = newSeed();
+  feed.reset(seed);
+  for (const g of players) g.reset(seed);
   ai.reset();
   tally.sent = [0, 0];
   tally.received = [0, 0];
