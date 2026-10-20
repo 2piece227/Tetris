@@ -1,4 +1,4 @@
-import { rankPlacements } from "../engine/placements";
+import { rankTwoDeep } from "../engine/lookahead";
 import type { Game } from "./game";
 import { key, orientations, type Step } from "./orientations";
 import type { IVec3 } from "./vec";
@@ -24,8 +24,8 @@ export const DEMO_PACE: Pace = { beatMs: 240, settleMs: 750 };
  * Plays the game on its own — the attract screen in VR, and the opponent in
  * versus.
  *
- * Where to put each piece is the evaluation engine's call (one move deep, see
- * src/engine/placements.ts); this class only turns that into the turns and
+ * Where to put each piece is the evaluation engine's call (two moves deep, see
+ * src/engine/lookahead.ts); this class only turns that into the turns and
  * slides a player would make, one beat at a time, so it reads as somebody
  * playing rather than as pieces appearing in place.
  */
@@ -88,9 +88,10 @@ export class AutoPlayer {
   /** Choose a landing spot: the turns that reach its shape, and its column. */
   private buildPlan(game: Game): void {
     this.planningFor = game.cells;
-    // The engine ranks every resting place; the orientation search knows the
-    // turns that reach each shape. Shapes are matched by their normalised key.
-    const ranked = rankPlacements(game.grid, game.cells);
+    // The engine ranks every resting place, looking one piece ahead; the
+    // orientation search knows the turns that reach each shape. Shapes are
+    // matched by their normalised key.
+    const ranked = rankTwoDeep(game.grid, game.cells, game.next.cells);
     const paths = orientations(game.cells);
 
     let choice = ranked[0];

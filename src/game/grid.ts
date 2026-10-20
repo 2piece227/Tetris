@@ -54,11 +54,15 @@ export class Grid {
   }
 
   // Can these piece cells (offsets) sit at world position `pos`?
+  // Called hundreds of thousands of times per move by the engine's look-ahead,
+  // so it does its arithmetic inline rather than building a vector per cell.
   canPlace(cells: IVec3[], pos: IVec3): boolean {
     for (const cell of cells) {
-      const p = add(pos, cell);
-      if (!this.inBounds(p.x, p.y, p.z)) return false;
-      if (this.isFilled(p.x, p.y, p.z)) return false;
+      const x = pos.x + cell.x;
+      const y = pos.y + cell.y;
+      const z = pos.z + cell.z;
+      if (!this.inBounds(x, y, z)) return false;
+      if (this.cells[this.idx(x, y, z)] !== EMPTY) return false;
     }
     return true;
   }

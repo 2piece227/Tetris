@@ -1,7 +1,6 @@
 import { Renderer, type DrawState } from "../vr/renderer";
 import { LABELS, LABEL_ORDER } from "./labels";
 import type { Review, Turn } from "./analysis";
-import { sampleReview } from "./sample";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const hex = (c: number): string => "#" + c.toString(16).padStart(6, "0");
@@ -29,7 +28,7 @@ function facts(t: Turn): string[] {
   return out;
 }
 
-export function openReport(review: Review = sampleReview()): void {
+export function openReport(review: Review): void {
   // The canvas has to be on screen before the engine sizes itself to it.
   document.body.classList.add("reporting");
 

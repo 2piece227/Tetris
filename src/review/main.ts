@@ -39,29 +39,58 @@ form.addEventListener("submit", (e) => {
   void lookUp(code());
 });
 
+const analysing = document.getElementById("analysing") as HTMLElement;
+const analysingCount = document.getElementById("analysingCount") as HTMLElement;
+const analysingBar = document.getElementById("analysingBar") as HTMLElement;
+
+/** The "AI is analysing" card, filled as the engine works through the turns. */
+const showProgress = (done: number, total: number): void => {
+  analysing.classList.add("show");
+  analysingCount.textContent = `${done} / ${total}수`;
+  analysingBar.style.width = `${total ? (100 * done) / total : 0}%`;
+};
+
 /**
- * Find the round behind a code and open its review. Loaded on demand: the
- * entry screen should not wait on the 3D engine.
+ * Analyse a round and open its review. The engine looks two moves deep from
+ * every placement, which takes a few seconds a round, so the progress card
+ * stays up while it works. Loaded on demand: the entry screen should not wait
+ * on the engine or the 3D renderer.
  */
-async function lookUp(c: string): Promise<void> {
-  status.textContent = "불러오는 중…";
-  const [{ recordStore }, { reviewFromRecord }, { openReport }] = await Promise.all([
-    import("../record/store"),
+async function analyse(source: { record: import("../record/record").GameRecord } | "sample"): Promise<void> {
+  const [{ reviewFromRecord }, { sampleReview }, { openReport }] = await Promise.all([
     import("./analysis"),
+    import("./sample"),
     import("./report"),
   ]);
+  showProgress(0, 0);
+  try {
+    if (source === "sample") {
+      openReport(await sampleReview(showProgress));
+      return;
+    }
+    const { review, problem } = await reviewFromRecord(source.record, showProgress);
+    if (!review) {
+      status.textContent = `이 판의 리뷰를 만들 수 없어요: ${problem}`;
+      return;
+    }
+    openReport(review);
+  } finally {
+    analysing.classList.remove("show");
+  }
+}
+
+/** Find the round behind a code. */
+async function lookUp(c: string): Promise<void> {
+  status.textContent = "불러오는 중…";
+  const { recordStore } = await import("../record/store");
   const record = await recordStore.load(c);
   if (!record) {
     status.innerHTML = `코드 ${c}로 저장된 판을 찾을 수 없어요.<br /><button type="button" class="link" id="showSample">샘플 리뷰 보기</button>`;
-    document.getElementById("showSample")!.addEventListener("click", () => openReport());
+    document.getElementById("showSample")!.addEventListener("click", () => void analyse("sample"));
     return;
   }
-  const { review, problem } = reviewFromRecord(record);
-  if (!review) {
-    status.textContent = `이 판의 리뷰를 만들 수 없어요: ${problem}`;
-    return;
-  }
-  openReport(review);
+  status.textContent = "";
+  await analyse({ record });
 }
 
 /**
@@ -72,21 +101,13 @@ async function openFromLink(): Promise<void> {
   const m = /^#r=(.+)$/.exec(location.hash);
   if (!m) return;
   status.textContent = "불러오는 중…";
-  const [{ decodeRecord }, { reviewFromRecord }, { openReport }] = await Promise.all([
-    import("../record/share"),
-    import("./analysis"),
-    import("./report"),
-  ]);
+  const { decodeRecord } = await import("../record/share");
   const record = await decodeRecord(m[1]);
   if (!record) {
     status.textContent = "링크에 담긴 판을 읽을 수 없어요.";
     return;
   }
-  const { review, problem } = reviewFromRecord(record);
-  if (!review) {
-    status.textContent = `이 판의 리뷰를 만들 수 없어요: ${problem}`;
-    return;
-  }
-  openReport(review);
+  status.textContent = "";
+  await analyse({ record });
 }
 void openFromLink();

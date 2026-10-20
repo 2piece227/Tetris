@@ -9,6 +9,8 @@ export interface ReplayStep {
   /** 1-based, as shown to the player. */
   n: number;
   piece: PieceDef;
+  /** The piece shown as next while this one was in hand. */
+  next: PieceDef;
   move: MoveRecord;
   /** The board as it was when this piece arrived. */
   before: Grid;
@@ -53,7 +55,7 @@ export function replay(record: GameRecord): Replay {
   for (let i = 0; i < record.moves.length; i++) {
     const move = record.moves[i];
     const piece = feed.at(i);
-    feed.at(i + 1);
+    const next = feed.at(i + 1);
 
     if (piece.name !== move.piece)
       return { rules, steps, problem: `${i + 1}번째 조각이 기록(${move.piece})과 달라요(${piece.name})` };
@@ -61,7 +63,7 @@ export function replay(record: GameRecord): Replay {
     if (!grid.canPlace(move.cells, move.pos) || grid.canPlace(move.cells, below))
       return { rules, steps, problem: `${i + 1}번째 조각이 놓일 수 없는 자리에 기록돼 있어요` };
 
-    steps.push({ n: i + 1, piece, move, before: grid });
+    steps.push({ n: i + 1, piece, next, move, before: grid });
 
     const after = grid.clone();
     after.lock(move.cells, move.pos, piece.color);

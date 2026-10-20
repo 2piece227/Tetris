@@ -1,9 +1,16 @@
-import { rankPlacements } from "../engine/placements";
 import { PieceFeed } from "../game/bag";
 import { Grid } from "../game/grid";
 import { seeded } from "../game/random";
 import { VR_RULES } from "../game/rules";
-import { judgeTurn, placementIndicators, type Review, type Turn } from "./analysis";
+import {
+  breathe,
+  judgeTurn,
+  placementIndicators,
+  rankForReview,
+  type Progress,
+  type Review,
+  type Turn,
+} from "./analysis";
 
 /**
  * A made-up round, for showing the review without a real record.
@@ -14,7 +21,7 @@ import { judgeTurn, placementIndicators, type Review, type Turn } from "./analys
  * verdict shows up. Seeded, so the sample is the same every time. There are no
  * inputs behind it, so the turning and speed indicators are placeholders.
  */
-export function sampleReview(seed = 81, pieces = 40): Review {
+export async function sampleReview(onProgress?: Progress, seed = 81, pieces = 40): Promise<Review> {
   const rand = seeded(seed);
   const rules = VR_RULES;
   let score = 0;
@@ -25,8 +32,11 @@ export function sampleReview(seed = 81, pieces = 40): Review {
   const turns: Turn[] = [];
 
   for (let i = 0; i < pieces; i++) {
+    onProgress?.(i, pieces);
+    await breathe();
     const piece = feed.at(i);
-    const ranked = rankPlacements(grid, piece.cells);
+    const next = feed.at(i + 1);
+    const ranked = rankForReview(grid, piece, next);
     if (ranked.length === 0) break; // topped out
 
     const pick = (): number => {
@@ -39,7 +49,7 @@ export function sampleReview(seed = 81, pieces = 40): Review {
       return Math.floor(n * 0.75 + rand() * n * 0.25);
     };
     const played = ranked[Math.min(ranked.length - 1, pick())];
-    const turn = judgeTurn(i + 1, rules, grid, piece, played, ranked);
+    const turn = judgeTurn(i + 1, rules, grid, piece, played, next, ranked);
     turns.push(turn);
 
     const n = turn.played.features.cleared;

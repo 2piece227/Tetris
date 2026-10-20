@@ -6,6 +6,7 @@ import {
   type Placement,
   type Scored,
 } from "../engine/placements";
+import { rankTwoDeep, twoDeepValue } from "../engine/lookahead";
 import type { Grid } from "../game/grid";
 import { key, orientations } from "../game/orientations";
 import type { PieceDef } from "../game/pieces";
@@ -70,11 +71,21 @@ const cellsKey = (p: Placement): string =>
     .join("|");
 
 /**
+ * Every place the piece could go, valued the way the review judges them: two
+ * moves deep — looking ahead to the next piece — when it is known, from every
+ * placement, so the player's choice gets a fair value however the one-move
+ * search would have ranked it.
+ */
+export function rankForReview(before: Grid, piece: PieceDef, next?: PieceDef): Scored[] {
+  return next ? rankTwoDeep(before, piece.cells, next.cells, Infinity) : rankPlacements(before, piece.cells);
+}
+
+/**
  * Judge one move against every other place the piece could have gone.
  *
  * A placement the engine does not list — a piece slid in under an overhang
  * while it fell, which the engine's straight-down search never tries — is
- * scored on its own and ranked among the rest by score.
+ * valued on its own and ranked among the rest by that value.
  */
 export function judgeTurn(
   n: number,
@@ -82,13 +93,15 @@ export function judgeTurn(
   before: Grid,
   piece: PieceDef,
   placement: Placement,
-  ranked: Scored[] = rankPlacements(before, piece.cells)
+  next?: PieceDef,
+  ranked: Scored[] = rankForReview(before, piece, next)
 ): Turn {
   const want = cellsKey(placement);
   let played = ranked.find((p) => cellsKey(p) === want);
   if (!played) {
     const { features } = featuresAfter(before, placement);
-    played = { ...placement, features, score: scoreOf(features) };
+    const value = next ? twoDeepValue(before, placement, next.cells) : scoreOf(features);
+    played = { ...placement, features, score: value };
   }
   const best = ranked[0] ?? played;
   const median = ranked.length ? ranked[Math.floor(ranked.length / 2)].score : played.score;
@@ -202,16 +215,36 @@ function speedIndicator(turns: Turn[]): Indicator {
   };
 }
 
-/** The review of a recorded round, or why it could not be built. */
-export function reviewFromRecord(record: GameRecord): { review: Review | null; problem: string | null } {
+/** Reports how far an analysis has got: turns done, of how many. */
+export type Progress = (done: number, total: number) => void;
+
+/** Let the page draw between turns, so the progress shown actually moves. */
+export const breathe = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+/**
+ * The review of a recorded round, or why it could not be built.
+ *
+ * Two moves deep from every placement is a few tens of milliseconds a turn,
+ * a few seconds a round, so it yields between turns and reports progress.
+ */
+export async function reviewFromRecord(
+  record: GameRecord,
+  onProgress?: Progress
+): Promise<{ review: Review | null; problem: string | null }> {
   const { rules, steps, problem } = replay(record);
   if (problem) return { review: null, problem };
   if (steps.length === 0) return { review: null, problem: "놓은 조각이 하나도 없는 판이에요" };
 
-  const turns = steps.map((s) => ({
-    ...judgeTurn(s.n, rules, s.before, s.piece, { cells: s.move.cells, pos: s.move.pos }),
-    move: s.move,
-  }));
+  const turns: Turn[] = [];
+  for (const s of steps) {
+    onProgress?.(turns.length, steps.length);
+    await breathe();
+    turns.push({
+      ...judgeTurn(s.n, rules, s.before, s.piece, { cells: s.move.cells, pos: s.move.pos }, s.next),
+      move: s.move,
+    });
+  }
+  onProgress?.(turns.length, steps.length);
   const [accuracy, solid] = placementIndicators(turns);
   return {
     review: {
