@@ -6,7 +6,6 @@ import {
   type Placement,
   type Scored,
 } from "../engine/placements";
-import { rankTwoDeep, twoDeepValue } from "../engine/lookahead";
 import type { Grid } from "../game/grid";
 import { key, orientations } from "../game/orientations";
 import type { PieceDef } from "../game/pieces";
@@ -71,13 +70,18 @@ const cellsKey = (p: Placement): string =>
     .join("|");
 
 /**
- * Every place the piece could go, valued the way the review judges them: two
- * moves deep — looking ahead to the next piece — when it is known, from every
- * placement, so the player's choice gets a fair value however the one-move
- * search would have ranked it.
+ * Every place the piece could go, valued the way the review judges them: one
+ * move deep, on the board the player was looking at.
+ *
+ * The opponent looks a piece further ahead, and the review did too for a
+ * while. It was dropped: two moves deep, a sensible move on the board as it
+ * stood could be marked 의문 because a different spot would have suited the
+ * next piece better — which asks a first-time player to have planned two
+ * pieces out, and is hard to explain from what is on screen. The review judges
+ * the decision the player could see.
  */
-export function rankForReview(before: Grid, piece: PieceDef, next?: PieceDef): Scored[] {
-  return next ? rankTwoDeep(before, piece.cells, next.cells, Infinity) : rankPlacements(before, piece.cells);
+export function rankForReview(before: Grid, piece: PieceDef): Scored[] {
+  return rankPlacements(before, piece.cells);
 }
 
 /**
@@ -93,15 +97,13 @@ export function judgeTurn(
   before: Grid,
   piece: PieceDef,
   placement: Placement,
-  next?: PieceDef,
-  ranked: Scored[] = rankForReview(before, piece, next)
+  ranked: Scored[] = rankForReview(before, piece)
 ): Turn {
   const want = cellsKey(placement);
   let played = ranked.find((p) => cellsKey(p) === want);
   if (!played) {
     const { features } = featuresAfter(before, placement);
-    const value = next ? twoDeepValue(before, placement, next.cells) : scoreOf(features);
-    played = { ...placement, features, score: value };
+    played = { ...placement, features, score: scoreOf(features) };
   }
   const best = ranked[0] ?? played;
   const median = ranked.length ? ranked[Math.floor(ranked.length / 2)].score : played.score;
@@ -240,7 +242,7 @@ export async function reviewFromRecord(
     onProgress?.(turns.length, steps.length);
     await breathe();
     turns.push({
-      ...judgeTurn(s.n, rules, s.before, s.piece, { cells: s.move.cells, pos: s.move.pos }, s.next),
+      ...judgeTurn(s.n, rules, s.before, s.piece, { cells: s.move.cells, pos: s.move.pos }),
       move: s.move,
     });
   }

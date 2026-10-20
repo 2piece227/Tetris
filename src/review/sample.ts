@@ -35,8 +35,8 @@ export async function sampleReview(onProgress?: Progress, seed = 81, pieces = 40
     onProgress?.(i, pieces);
     await breathe();
     const piece = feed.at(i);
-    const next = feed.at(i + 1);
-    const ranked = rankForReview(grid, piece, next);
+    feed.at(i + 1); // dealt in the game's order, so the tiers line up
+    const ranked = rankForReview(grid, piece);
     if (ranked.length === 0) break; // topped out
 
     const pick = (): number => {
@@ -49,7 +49,7 @@ export async function sampleReview(onProgress?: Progress, seed = 81, pieces = 40
       return Math.floor(n * 0.75 + rand() * n * 0.25);
     };
     const played = ranked[Math.min(ranked.length - 1, pick())];
-    const turn = judgeTurn(i + 1, rules, grid, piece, played, next, ranked);
+    const turn = judgeTurn(i + 1, rules, grid, piece, played, ranked);
     turns.push(turn);
 
     const n = turn.played.features.cleared;

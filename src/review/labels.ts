@@ -31,13 +31,8 @@ export interface Judged {
   wellH: number;
 }
 
-/**
- * A position has to punish wrong choices at least this much for 탁월 to mean
- * anything. Set against the two-move scores, where spreads run wider than they
- * did one move deep: 35 keeps 탁월 to about one move in twenty on the sample
- * rounds, as 12 did before the review looked ahead.
- */
-const MIN_SPREAD_FOR_BRILLIANT = 35;
+/** A position has to punish wrong choices at least this much for 탁월 to mean anything. */
+const MIN_SPREAD_FOR_BRILLIANT = 12;
 
 /**
  * PROVISIONAL cutoffs. Loss is measured against the spread of the options in
