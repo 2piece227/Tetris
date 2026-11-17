@@ -133,6 +133,34 @@
       .bar { height: 7px; border-radius: 4px; background: rgba(255,255,255,0.07); overflow: hidden; }
       .bar div { height: 100%; border-radius: 4px; background: var(--accent); }
       .meter p { color: var(--faint); font-size: 12px; margin-top: 5px; line-height: 1.5; }
+      .meter .skill {
+        font-style: normal; font-size: 10.5px; color: var(--muted); margin-left: 6px;
+        border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; vertical-align: 1px;
+      }
+      .meter.empty .bar { background: repeating-linear-gradient(90deg, rgba(255,255,255,0.08) 0 6px, transparent 6px 10px); }
+      .radar svg { width: 100%; height: auto; display: block; }
+      .radar .rg { fill: none; stroke: rgba(124,139,255,0.18); }
+      .radar .ra { stroke: rgba(124,139,255,0.25); }
+      .radar .rp { fill: rgba(124,139,255,0.28); stroke: var(--accent); stroke-width: 2; }
+      .radar .rd { fill: var(--accent); }
+      .radar .rl { fill: var(--text); font-size: 11.5px; font-weight: 700; }
+      .radar .rv { fill: var(--muted); font-size: 11px; }
+      .insight { font-size: 13.5px; color: var(--muted); margin: 4px 0 14px; text-align: center; }
+      .insight b { color: var(--text); }
+      .practice .focus { font-size: 14px; font-weight: 800; color: #f0b64a; margin-bottom: 6px; }
+      .practice .tip { font-size: 13.5px; line-height: 1.65; color: var(--text); }
+      .practice .cta {
+        display: block; margin-top: 12px; text-align: center; font-size: 14px; font-weight: 800;
+        color: var(--accent-ink); background: var(--accent); border-radius: 10px; padding: 11px;
+      }
+      .card .turning { font-size: 13.5px; color: var(--muted); margin-top: 10px; }
+      .card .turning b.good { color: #7cf0c0; }
+      .card .turning b.warn { color: #f0b64a; }
+      .card .compare { width: 100%; margin-top: 10px; border-collapse: collapse; font-size: 13px; }
+      .card .compare th { text-align: left; color: var(--faint); font-weight: 600; padding: 3px 0; }
+      .card .compare td { text-align: center; color: var(--muted); padding: 3px 0; font-variant-numeric: tabular-nums; }
+      .card .compare tr:first-child td { color: var(--faint); font-size: 12px; }
+      .card .compare td.ai { color: #2fd6e6; font-weight: 800; }
 
       .moments { display: flex; flex-direction: column; gap: 8px; }
       .moments button {
@@ -246,8 +274,17 @@
         </section>
 
         <section>
-          <h2>공간지각 지표</h2>
+          <h2>공간지각 리포트</h2>
+          <div class="radar" id="radar"></div>
+          <p class="insight" id="insight"></p>
           <div id="meters"></div>
+        </section>
+
+        <section class="practice">
+          <h2>다음 연습 과제</h2>
+          <p class="focus" id="tipFocus"></p>
+          <p class="tip" id="tip"></p>
+          <a class="cta" href="./versus.html">AI와 대결하며 연습하기 →</a>
         </section>
 
         <section>
@@ -264,6 +301,8 @@
         </div>
         <div class="lead" id="cLead"></div>
         <ul id="cFacts"></ul>
+        <p class="turning" id="cTurning"></p>
+        <table class="compare" id="cCompare"></table>
         <div class="legend-hint" id="cLegend">
           <span><i class="swatch" style="background:#ffffff"></i>내가 둔 자리</span>
           <span><i class="swatch" style="background:#2fd6e6"></i>AI 추천 (홀로그램)</span>

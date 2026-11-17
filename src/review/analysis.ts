@@ -37,9 +37,15 @@ export interface Turn {
 }
 
 export interface Indicator {
+  id: "accuracy" | "rotation" | "solid" | "speed";
   name: string;
-  /** 0–100, for the bar. */
-  value: number;
+  /**
+   * The spatial skill the indicator leans on, named so a reader can place it
+   * — not a claim that it measures that skill the way a test would.
+   */
+  skill: string;
+  /** 0–100, for the bar; null when this round gave nothing to measure. */
+  value: number | null;
   /** What is printed beside the bar. */
   display: string;
   note: string;
@@ -156,15 +162,19 @@ function placementIndicators(turns: Turn[]): Indicator[] {
   const flat = Math.round(mean(turns.filter((t) => !SOLID.has(t.piece.name)).map((t) => t.accuracy)));
   return [
     {
+      id: "accuracy",
       name: "배치 정확도",
+      skill: "공간 시각화",
       value: accuracy,
       display: `${accuracy}%`,
       note: "놓을 수 있는 자리 중 얼마나 좋은 곳을 골랐는지",
       sample: false,
     },
     {
+      id: "solid",
       name: "입체 조각 처리",
-      value: solidTurns.length ? solid : flat,
+      skill: "3차원 형태 처리",
+      value: solidTurns.length ? solid : null,
       display: solidTurns.length ? `${solid}%` : "—",
       note: solidTurns.length
         ? `평면 조각 ${flat}% 대비, 가지·나사 조각을 얼마나 잘 놓았는지`
@@ -193,9 +203,23 @@ function rotationIndicator(turns: Turn[]): Indicator {
       else blocked++;
     }
   }
+  // A round with no turns at all says nothing about turning: shown as no data,
+  // not as a perfect score.
+  if (made === 0 && needed === 0)
+    return {
+      id: "rotation",
+      name: "회전 효율",
+      skill: "심적 회전",
+      value: null,
+      display: "—",
+      note: "이번 판에는 조각을 돌리지 않았어요",
+      sample: false,
+    };
   const value = made === 0 ? 100 : clamp((100 * needed) / made);
   return {
+    id: "rotation",
     name: "회전 효율",
+    skill: "심적 회전",
     value,
     display: `${value}%`,
     note: `최소 ${needed}번이면 되는 회전을 ${made}번 돌렸어요` + (blocked ? ` (막힌 회전 ${blocked}번)` : ""),
@@ -209,7 +233,9 @@ function speedIndicator(turns: Turn[]): Indicator {
   // 2 s or under fills the bar; 16 s and over empties it.
   const value = clamp(100 * (1 - (secs - 2) / 14));
   return {
+    id: "speed",
     name: "판단 속도",
+    skill: "처리 속도",
     value,
     display: `${secs.toFixed(1)}초`,
     note: "조각이 나타나서 놓기까지 걸린 평균 시간",
@@ -253,7 +279,7 @@ export async function reviewFromRecord(
       turns,
       score: record.score,
       layers: record.layers,
-      accuracy: accuracy.value,
+      accuracy: accuracy.value ?? 0,
       indicators: [accuracy, rotationIndicator(turns), solid, speedIndicator(turns)],
       sample: false,
     },

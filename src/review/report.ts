@@ -1,6 +1,7 @@
 import { Renderer, type DrawState } from "../vr/renderer";
 import { LABELS, LABEL_ORDER } from "./labels";
-import type { Review, Turn } from "./analysis";
+import { key, orientations } from "../game/orientations";
+import type { Indicator, Review, Turn } from "./analysis";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const hex = (c: number): string => "#" + c.toString(16).padStart(6, "0");
@@ -26,6 +27,57 @@ function facts(t: Turn): string[] {
     else out.push("추천 자리가 바닥을 더 평평하게 만들어요.");
   }
   return out;
+}
+
+/**
+ * What to practise next, keyed to the weakest indicator. Each names something
+ * to try in the next round — the review is meant to end in a next attempt,
+ * not in a grade.
+ */
+const TIPS: Record<Indicator["id"], string> = {
+  accuracy: "놓기 전에 '이 자리에 놓으면 아래에 빈칸이 덮이나?'부터 확인해 보세요. 구멍을 안 만드는 것만으로 정확도가 크게 올라요.",
+  rotation: "버튼을 누르기 전에 원하는 모양을 머릿속으로 먼저 돌려보세요. 한 번에 맞는 방향을 찾는 연습이 심적 회전을 길러줘요.",
+  solid: "가지·나사 조각은 바닥에 닿을 면을 먼저 정하고, 그 면이 아래로 가도록 돌려보세요.",
+  speed: "조각이 떨어지는 동안 '다음 조각' 칸을 보고 다음 자리를 미리 정해두면 판단이 빨라져요.",
+};
+
+/** A small radar of the four indicators. An axis with no data is drawn hollow. */
+function radar(inds: Indicator[]): string {
+  const cx = 110, cy = 100, r = 70;
+  const at = (i: number, v: number): [number, number] => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / inds.length;
+    return [cx + Math.cos(a) * r * v, cy + Math.sin(a) * r * v];
+  };
+  const ring = (v: number): string => inds.map((_, i) => at(i, v).join(",")).join(" ");
+  const pts = inds.map((m, i) => at(i, (m.value ?? 0) / 100).join(",")).join(" ");
+  const labels = inds
+    .map((m, i) => {
+      const [x, y] = at(i, 1.28);
+      const anchor = Math.abs(x - cx) < 4 ? "middle" : x > cx ? "start" : "end";
+      const val = m.value === null ? "—" : m.display;
+      return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${anchor}" class="rl">${m.name}</text>` +
+        `<text x="${x.toFixed(1)}" y="${(y + 18).toFixed(1)}" text-anchor="${anchor}" class="rv">${val}</text>`;
+    })
+    .join("");
+  return `<svg viewBox="-40 -14 300 236" role="img" aria-label="공간지각 리포트">` +
+    [0.25, 0.5, 0.75, 1].map((v) => `<polygon points="${ring(v)}" class="rg"/>`).join("") +
+    inds.map((_, i) => `<line x1="${cx}" y1="${cy}" x2="${at(i, 1)[0]}" y2="${at(i, 1)[1]}" class="ra"/>`).join("") +
+    `<polygon points="${pts}" class="rp"/>` +
+    inds.map((m, i) => (m.value === null ? "" : `<circle cx="${at(i, m.value / 100)[0]}" cy="${at(i, m.value / 100)[1]}" r="3.5" class="rd"/>`)).join("") +
+    labels + `</svg>`;
+}
+
+/** How this piece was turned against the fewest turns its final shape needs. */
+function turning(t: Turn): string {
+  if (!t.move) return "";
+  const needed = orientations(t.piece.cells).get(key(t.move.cells))?.path.length ?? 0;
+  let made = 0;
+  let blocked = 0;
+  for (const i of t.move.inputs) if (i.k === "turn") i.ok ? made++ : blocked++;
+  const extra = blocked ? ` · 막힌 회전 ${blocked}번` : "";
+  if (needed === 0 && made === 0) return `회전 없이 그대로 놓았어요${extra}`;
+  const ok = made <= needed;
+  return `<b class="${ok ? "good" : "warn"}">${made}번</b> 돌림 · 최소 ${needed}번이면 되는 모양${extra}`;
 }
 
 export function openReport(review: Review): void {
@@ -57,15 +109,29 @@ export function openReport(review: Review): void {
     return `<span class="count"><i style="background:${LABELS[l].color}"></i>${LABELS[l].name} <b>${n}</b></span>`;
   }).join("");
 
+  $("radar").innerHTML = radar(review.indicators);
   $("meters").innerHTML = review.indicators
     .map(
-      (m) => `<div class="meter">
-        <div class="row1"><span>${m.name}${m.sample ? "<em>샘플</em>" : ""}</span><b>${m.display}</b></div>
-        <div class="bar"><div style="width:${m.value}%"></div></div>
+      (m) => `<div class="meter${m.value === null ? " empty" : ""}">
+        <div class="row1"><span>${m.name}<i class="skill">${m.skill}</i>${m.sample ? "<em>샘플</em>" : ""}</span><b>${m.display}</b></div>
+        <div class="bar"><div style="width:${m.value ?? 0}%"></div></div>
         <p>${m.note}</p>
       </div>`
     )
     .join("");
+
+  // Strength and the thing to practise: the best and worst measured indicator.
+  const measured = review.indicators.filter((m) => m.value !== null && !m.sample);
+  const sorted = [...measured].sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
+  const strong = sorted[0];
+  const weak = sorted[sorted.length - 1];
+  $("insight").innerHTML =
+    strong && weak && strong !== weak
+      ? `강점 <b>${strong.name}</b> · 연습할 점 <b>${weak.name}</b>`
+      : "지표가 더 쌓이면 강점과 연습할 점을 알려드려요";
+  const focus = weak ?? review.indicators[0];
+  $("tipFocus").textContent = focus ? `${focus.name} (${focus.skill})` : "";
+  $("tip").textContent = focus ? TIPS[focus.id] : "";
 
   // Worst verdict first, then the bigger loss: a 블런더 outranks a 의문 that
   // happened to cost more points, because the verdict is what the player reads.
@@ -159,6 +225,24 @@ export function openReport(review: Review): void {
     $("cLead").textContent = L.lead;
     $("cFacts").innerHTML = facts(t).map((f) => `<li>${f}</li>`).join("");
     $("cRank").textContent = `가능한 ${t.options}곳 중 ${t.rank}번째`;
+    $("cTurning").innerHTML = turning(t);
+    $("cTurning").style.display = t.move ? "" : "none";
+    // Mine against the engine's choice, on the three things that decided it.
+    const p = t.played.features;
+    const b = t.best.features;
+    const cmp = $("cCompare");
+    cmp.style.display = t.rank > 1 ? "" : "none";
+    if (t.rank > 1) {
+      const row = (name: string, mine: number, ai: number, lowerIsBetter: boolean): string => {
+        const better = lowerIsBetter ? ai < mine : ai > mine;
+        return `<tr><th>${name}</th><td>${mine}</td><td class="${better ? "ai" : ""}">${ai}</td></tr>`;
+      };
+      cmp.innerHTML =
+        `<tr><th></th><td>내 수</td><td>AI 추천</td></tr>` +
+        row("구멍", p.holes, b.holes, true) +
+        row("최고 높이", p.top, b.top, true) +
+        row("지운 층", p.cleared, b.cleared, false);
+    }
     $("cHint").textContent = t.fullLayers.length
       ? placed ? "Space: 지운 뒤 보기" : "Space: 놓는 순간 다시 보기"
       : t.rank === 1 ? "AI 추천과 같은 자리" : showBest ? "Space: 추천 숨기기" : "Space: 추천 보기";

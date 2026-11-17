@@ -66,12 +66,12 @@ export async function sampleReview(onProgress?: Progress, seed = 81, pieces = 40
     turns,
     score,
     layers,
-    accuracy: accuracy.value,
+    accuracy: accuracy.value ?? 0,
     indicators: [
       accuracy,
-      { name: "회전 효율", value: 82, display: "82%", note: "필요한 최소 회전에 얼마나 가깝게 돌렸는지", sample: true },
+      { id: "rotation", name: "회전 효율", skill: "심적 회전", value: 82, display: "82%", note: "필요한 최소 회전에 얼마나 가깝게 돌렸는지", sample: true },
       solid,
-      { name: "판단 속도", value: 64, display: "6.2초", note: "조각이 나타나서 놓기까지 걸린 평균 시간", sample: true },
+      { id: "speed", name: "판단 속도", skill: "처리 속도", value: 64, display: "6.2초", note: "조각이 나타나서 놓기까지 걸린 평균 시간", sample: true },
     ],
     sample: true,
   };
