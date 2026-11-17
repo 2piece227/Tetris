@@ -31,8 +31,14 @@ export interface Judged {
   wellH: number;
 }
 
-/** A position has to punish wrong choices at least this much for 탁월 to mean anything. */
-const MIN_SPREAD_FOR_BRILLIANT = 12;
+/**
+ * A position has to punish wrong choices at least this much for 탁월 to mean
+ * anything. In the learned weights' units (a covered gap now costs ~46, not
+ * 12), where the median spread is about 127: 75 keeps 탁월 near one move in
+ * twenty on the sample rounds. Re-run tools/calibrate-labels.ts after any
+ * change to the weights.
+ */
+const MIN_SPREAD_FOR_BRILLIANT = 75;
 
 /**
  * PROVISIONAL cutoffs. Loss is measured against the spread of the options in

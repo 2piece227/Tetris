@@ -106,10 +106,26 @@ export function featuresAfter(grid: Grid, p: Placement): { features: Features; a
 }
 
 /**
- * Hand-set weights. A first pass, to be replaced by weights found in
- * self-play once games can be replayed from a seed.
+ * The weights the engine plays and judges with, learned by self-play
+ * (tools/train-weights.ts, noisy cross-entropy method, 30 generations on the
+ * VR rules; the run is kept in tools/results/). On 30 sequences the training
+ * never saw, these cleared 160.1 layers to the hand-set weights' 120.0 and
+ * survived all 600 pieces in 28 games to 13.
+ *
+ * What it found: a covered gap costs about four times what the hand-set
+ * weights said, and in a well this deep the stack's height barely matters.
+ * The clear weight is pinned at 30 during training, so the scale stays the
+ * one the review's verdict thresholds were set against.
  */
 export const WEIGHTS = {
+  cleared: 30,
+  top: 3.887,
+  holes: -45.621,
+  bumpiness: -4.98,
+};
+
+/** The first, hand-set weights, kept for comparison runs. */
+export const HAND_WEIGHTS = {
   cleared: 30,
   top: -4,
   holes: -12,
