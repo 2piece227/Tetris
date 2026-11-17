@@ -115,12 +115,30 @@ game.onGameOver = () => {
   ui.showGameOver(game);
   // Keep the round for the review and show its code. A round abandoned with Y
   // never gets here, so only finished rounds are kept.
-  const round = game.seed;
-  void recordStore.save(game.toRecord()).then((code) => {
-    // A restart while saving must not put the old round's code on the new one.
-    if (game.gameOver && game.seed === round) ui.setReviewCode(code);
-  });
+  void saveRound(game.toRecord(), game.seed);
 };
+
+/**
+ * Save a finished round and put its code on the game-over panel, retrying
+ * while the network is down. The venue's wifi is not to be trusted; a code
+ * that arrives a minute late is still a review, a lost one is not.
+ */
+async function saveRound(record: ReturnType<Game["toRecord"]>, round: number): Promise<void> {
+  // Stop once this panel is gone: a new round, or the same seed no longer up.
+  const current = (): boolean => game.gameOver && game.seed === round;
+  ui.setReviewStatus("리뷰 코드 받는 중…");
+  for (let attempt = 1; current(); attempt++) {
+    try {
+      const code = await recordStore.save(record);
+      if (current()) ui.setReviewCode(code);
+      return;
+    } catch {
+      if (!current()) return;
+      ui.setReviewStatus("인터넷 연결 확인 중 · 다시 시도해요");
+      await new Promise((r) => setTimeout(r, Math.min(15_000, 3_000 * attempt)));
+    }
+  }
+}
 
 attachKeyboard(game, sfx, () => renderer.viewRelativeYaw(), restart, noteInput);
 void setupXR(game, renderer, sfx, restart, noteInput);

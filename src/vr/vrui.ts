@@ -314,7 +314,16 @@ export class VrUi {
 
   /** The review code, once the round has been saved; null clears it. */
   setReviewCode(code: string | null): void {
+    this.reviewCode.color = "#7cf0c0";
+    this.reviewCode.fontSize = 84;
     this.reviewCode.text = code ? `리뷰 코드  ${code}` : "";
+  }
+
+  /** In place of the code while it is being fetched or the network is down. */
+  setReviewStatus(text: string): void {
+    this.reviewCode.color = "#9aa5d4";
+    this.reviewCode.fontSize = 52;
+    this.reviewCode.text = text;
   }
 
   hideGameOver(): void {

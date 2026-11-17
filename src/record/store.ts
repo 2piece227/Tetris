@@ -1,12 +1,12 @@
 import type { GameRecord } from "./record";
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabaseConfig";
 
 /**
  * Where finished rounds go, and how the review finds them by code.
  *
- * At the booth the headset and the monitor PC are different machines, so this
- * has to end up being a server both can reach. How that server is reached is
- * not settled yet (it depends on the venue's network), so everything talks to
- * this interface and the implementation is picked once, below.
+ * At the booth the headset and the monitor PC are different machines, so codes
+ * go through the booth's Supabase project (supabaseConfig.ts). Without one
+ * configured, rounds stay in the browser that played them.
  */
 export interface RecordStore {
   /** Keep a round and hand back the 4-digit code the player types to see it. */
@@ -62,4 +62,52 @@ class LocalStore implements RecordStore {
   }
 }
 
-export const recordStore: RecordStore = new LocalStore();
+/** How long to wait on the network before calling a save or load failed. */
+const TIMEOUT_MS = 8000;
+
+/**
+ * Keeps rounds in the booth's Supabase project, so a code shown in the headset
+ * resolves on the monitor PC. Talks to the two RPC functions in
+ * supabase/schema.sql over plain fetch — no client library to ship.
+ *
+ * save() throws when the network is down, so the headset can say so and try
+ * again rather than show a code that leads nowhere. load() falls back to this
+ * device's own storage, which still finds rounds played on it.
+ */
+class SupabaseStore implements RecordStore {
+  private readonly local = new LocalStore();
+
+  constructor(private readonly url: string, private readonly key: string) {}
+
+  private async rpc<T>(fn: string, body: unknown): Promise<T> {
+    const res = await fetch(`${this.url.replace(/\/$/, "")}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: {
+        apikey: this.key,
+        Authorization: `Bearer ${this.key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    if (!res.ok) throw new Error(`${fn}: HTTP ${res.status}`);
+    return (await res.json()) as T;
+  }
+
+  async save(record: GameRecord): Promise<string> {
+    return this.rpc<string>("save_round", { rec: record });
+  }
+
+  async load(code: string): Promise<GameRecord | null> {
+    try {
+      const record = await this.rpc<GameRecord | null>("get_round", { c: code });
+      if (record) return record;
+    } catch {
+      // Offline: this device's own rounds may still have it.
+    }
+    return this.local.load(code);
+  }
+}
+
+export const recordStore: RecordStore =
+  SUPABASE_URL && SUPABASE_ANON_KEY ? new SupabaseStore(SUPABASE_URL, SUPABASE_ANON_KEY) : new LocalStore();

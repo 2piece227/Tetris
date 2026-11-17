@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview --host"
+    "preview": "vite preview --host",
+    "train": "esbuild tools/train-weights.ts --bundle --platform=node --format=esm --outfile=tools/out/train.mjs --log-level=warning && node tools/out/train.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
