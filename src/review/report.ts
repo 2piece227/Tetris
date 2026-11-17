@@ -1,6 +1,10 @@
+import { Vector3 } from "@babylonjs/core";
+import { CELL } from "../vr/config";
 import { Renderer, type DrawState } from "../vr/renderer";
 import { LABELS, LABEL_ORDER } from "./labels";
+import { rankPlacements, type Scored } from "../engine/placements";
 import { key, orientations } from "../game/orientations";
+import type { Label } from "./labels";
 import type { Indicator, Review, Turn } from "./analysis";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -78,6 +82,58 @@ function turning(t: Turn): string {
   if (needed === 0 && made === 0) return `회전 없이 그대로 놓았어요${extra}`;
   const ok = made <= needed;
   return `<b class="${ok ? "good" : "warn"}">${made}번</b> 돌림 · 최소 ${needed}번이면 되는 모양${extra}`;
+}
+
+/** Quiz option colours: warm and distinct from the engine's cyan hologram. */
+const QUIZ_COLORS = ["#ff5a3c", "#ffd21f", "#9d6bff", "#3fdc6b"];
+const LETTERS = ["A", "B", "C", "D"];
+/** The engine's choice, as the review's hologram shows it. */
+const AI_COLOR = "#2fd6e6";
+
+interface QuizOption {
+  place: Scored;
+  /** best = the engine's choice; mine = where the player actually put it. */
+  tag: "best" | "mine" | "other";
+  color: string;
+  letter: string;
+}
+
+const cellsKey = (p: { cells: { x: number; y: number; z: number }[]; pos: { x: number; y: number; z: number } }): string[] =>
+  p.cells.map((c) => `${c.x + p.pos.x},${c.y + p.pos.y},${c.z + p.pos.z}`);
+
+/**
+ * Three or four places the piece could have gone: the engine's choice, the
+ * player's own move when it differs, and clearly worse spots from the middle
+ * of the ranking. Spots that do not overlap are preferred, so each colour can
+ * be told apart in the tank. Order is shuffled, fixed per turn.
+ */
+function quizOptions(t: Turn): QuizOption[] {
+  const ranked = rankPlacements(t.before, t.piece.cells);
+  const chosen: { place: Scored; tag: QuizOption["tag"] }[] = [{ place: ranked[0], tag: "best" }];
+  const used = new Set(cellsKey(ranked[0]));
+  const same = (a: Scored, b: Scored): boolean => cellsKey(a).sort().join("|") === cellsKey(b).sort().join("|");
+  if (t.rank > 1 && !same(t.played, ranked[0])) {
+    chosen.push({ place: t.played, tag: "mine" });
+    cellsKey(t.played).forEach((k) => used.add(k));
+  }
+  const lo = Math.floor(ranked.length * 0.25);
+  const hi = Math.max(lo + 1, Math.floor(ranked.length * 0.8));
+  const pool = ranked.slice(lo, hi).filter((p) => p.score < ranked[0].score - 1 && !chosen.some((c) => same(c.place, p)));
+  // Walk the pool from a turn-dependent start, so neighbouring turns differ.
+  for (let pass = 0; pass < 2 && chosen.length < 4; pass++)
+    for (let k = 0; k < pool.length && chosen.length < 4; k++) {
+      const p = pool[(k * 7 + t.n * 3) % pool.length];
+      if (chosen.some((c) => same(c.place, p))) continue;
+      const keys = cellsKey(p);
+      if (pass === 0 && keys.some((x) => used.has(x))) continue;
+      chosen.push({ place: p, tag: "other" });
+      keys.forEach((x) => used.add(x));
+    }
+  const order = chosen
+    .map((c, i) => ({ c, h: (t.n * 31 + i * 17) % 97 }))
+    .sort((a, b) => a.h - b.h)
+    .map((o) => o.c);
+  return order.map((c, i) => ({ ...c, color: QUIZ_COLORS[i], letter: LETTERS[i] }));
 }
 
 export function openReport(review: Review): void {
@@ -160,17 +216,59 @@ export function openReport(review: Review): void {
     momentsEl.appendChild(btn);
   }
 
-  // ── Timeline ──────────────────────────────────────────────────────────
-  const dotsEl = $("dots");
-  const dots = turns.map((t, i) => {
-    const d = document.createElement("div");
-    d.className = "dot";
-    d.style.background = LABELS[t.label].color;
-    d.title = `${t.n}수 · ${LABELS[t.label].name}`;
-    d.addEventListener("click", () => go(i));
-    dotsEl.appendChild(d);
-    return d;
+  // ── Move list ─────────────────────────────────────────────────────────
+  // Every move as a row, like a match history: number, verdict, what it did,
+  // accuracy. Filters by verdict make the mistakes easy to find.
+  let filter: Label | "all" = "all";
+  const short = (t: Turn): string => {
+    const p = t.played.features;
+    if (p.cleared > 0) return `${p.cleared}층 지움 · 조각 ${t.piece.name}`;
+    if (t.judged.holesCreated > 0) return `구멍 +${t.judged.holesCreated} · 조각 ${t.piece.name}`;
+    return `조각 ${t.piece.name}`;
+  };
+  const listEl = $("mlist");
+  const rows = turns.map((t, i) => {
+    const L = LABELS[t.label];
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "mv";
+    b.innerHTML =
+      `<span class="stripe" style="background:${L.color}"></span>` +
+      `<span class="n">${t.n}수</span>` +
+      `<span class="lb" style="color:${L.color}">${L.name}${L.mark ? " " + L.mark : ""}</span>` +
+      `<span class="note">${short(t)}</span>` +
+      `<span class="acc">${t.accuracy}%</span>`;
+    b.addEventListener("click", () => {
+      if (quiz) exitQuiz(false);
+      go(i);
+    });
+    listEl.appendChild(b);
+    return b;
   });
+  const filtersEl = $("filters");
+  const filterButtons = (["all", ...LABEL_ORDER] as const).map((f) => {
+    const n = f === "all" ? turns.length : turns.filter((t) => t.label === f).length;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `${f === "all" ? "전체" : LABELS[f].name}<b>${n}</b>`;
+    b.disabled = n === 0;
+    b.addEventListener("click", () => {
+      filter = f;
+      filterButtons.forEach(([g, el]) => el.classList.toggle("on", g === f));
+      rows.forEach((r, i) => (r.style.display = f === "all" || turns[i].label === f ? "" : "none"));
+      // Jump to the first move the filter shows, so the tank follows the list.
+      const first = turns.findIndex((t) => f === "all" || t.label === f);
+      if (first >= 0 && f !== "all") go(first);
+    });
+    filtersEl.appendChild(b);
+    return [f, b] as const;
+  });
+  filterButtons[0][1].classList.add("on");
+  /** Step to the previous or next move the filter shows. */
+  const step = (dir: 1 | -1): void => {
+    for (let i = at + dir; i >= 0 && i < turns.length; i += dir)
+      if (filter === "all" || turns[i].label === filter) return go(i);
+  };
 
   // ── One turn on screen ────────────────────────────────────────────────
   // A turn is shown at two moments: "placed", the piece just down on the
@@ -252,8 +350,9 @@ export function openReport(review: Review): void {
     (mine.firstElementChild as HTMLElement).style.background = hex(t.piece.color);
     ai.style.display = hint ? "" : "none";
 
-    dots.forEach((d, i) => d.classList.toggle("on", i === at));
-    dots[at].scrollIntoView({ block: "nearest", inline: "nearest" });
+    rows.forEach((r, i) => r.classList.toggle("on", i === at));
+    rows[at].scrollIntoView({ block: "nearest" });
+    $("cQuiz").style.display = t.rank > 1 ? "" : "none";
   }
 
   /** Show the current turn from the moment it was placed, then let it clear. */
@@ -302,14 +401,172 @@ export function openReport(review: Review): void {
     if (t >= 1) drop = null;
   });
 
-  $("prev").addEventListener("click", () => go(at - 1));
-  $("next").addEventListener("click", () => go(at + 1));
+  // ── Quiz: "think like the AI" ────────────────────────────────────────
+  // The moves worth a question: the 의문 and 블런더 ones, in order; if a round
+  // has none, the moves that lost the most. Up to eight.
+  const severe = turns.map((t, i) => ({ t, i })).filter(({ t }) => t.label === "dubious" || t.label === "blunder");
+  const queue = (severe.length
+    ? severe
+    : turns.map((t, i) => ({ t, i })).filter(({ t }) => t.rank > 1).sort((a, b) => b.t.judged.loss - a.t.judged.loss)
+  ).slice(0, 8).map(({ i }) => i);
+  $("practiceQuiz").textContent = queue.length ? `실수 장면으로 퀴즈 풀기 (${queue.length}문제)` : "퀴즈로 풀 장면이 없어요";
+  ($("practiceQuiz") as HTMLButtonElement).disabled = queue.length === 0;
+
+  let quiz: { list: number[]; pos: number; right: number; opts: QuizOption[]; picked: number | null } | null = null;
+
+  function startQuiz(list: number[]): void {
+    if (!list.length) return;
+    cancel();
+    quiz = { list, pos: 0, right: 0, opts: [], picked: null };
+    $("card").classList.add("quizzing");
+    // The stack goes ghostly so the four coloured options are the only solid
+    // things in the tank: the stack's own colours would otherwise pass for one.
+    renderer.setDemoLook(true);
+    ask();
+  }
+
+  function ask(): void {
+    if (!quiz) return;
+    const i = quiz.list[quiz.pos];
+    at = i;
+    const t = turns[i];
+    quiz.opts = quizOptions(t);
+    quiz.picked = null;
+    // The board the player faced, the piece to place on the plinth, no answer.
+    renderer.redraw({
+      grid: t.before,
+      gameOver: true,
+      pos: t.played.pos,
+      cells: t.played.cells,
+      current: t.piece,
+      next: t.piece,
+      ghostPos: () => t.played.pos,
+    });
+    renderer.showHint(null);
+    renderer.showOptions(quiz.opts.map((o) => ({ cells: o.place.cells, pos: o.place.pos, color: o.color })));
+    // Aim at the height the options sit at: in an 18-deep tank they are often
+    // down at the floor, small under the default view. Dragging still works.
+    const ys = quiz.opts.flatMap((o) => o.place.cells.map((c) => o.place.pos.y + c.y));
+    const mid = (Math.min(...ys) + Math.max(...ys) + 1) / 2;
+    cam.setTarget(new Vector3(renderer.wellRoot.position.x, renderer.wellRoot.position.y + mid * CELL, renderer.wellRoot.position.z));
+    cam.radius = 1.15;
+    rows.forEach((r, k) => r.classList.toggle("on", k === i));
+    rows[i].scrollIntoView({ block: "nearest" });
+
+    $("qProg").textContent = `${quiz.pos + 1} / ${quiz.list.length}문제 · 맞힘 ${quiz.right}`;
+    $("qAsk").textContent = `${t.n}수의 조각 ${t.piece.name}, AI라면 어디에 놓았을까요?`;
+    $("qOpts").innerHTML = quiz.opts
+      .map((o, k) => `<button type="button" data-k="${k}" style="background:${o.color}">${o.letter}</button>`)
+      .join("");
+    $("qOpts").querySelectorAll("button").forEach((b) =>
+      b.addEventListener("click", () => answer(Number((b as HTMLElement).dataset.k)))
+    );
+    $("qRes").innerHTML = "";
+    $("qNext").style.visibility = "hidden";
+  }
+
+  function answer(k: number): void {
+    if (!quiz || quiz.picked !== null || !quiz.opts[k]) return;
+    quiz.picked = k;
+    const best = quiz.opts.find((o) => o.tag === "best")!;
+    const picked = quiz.opts[k];
+    const right = picked === best;
+    if (right) quiz.right++;
+    // Leave the answer in the tank: the engine's spot in its cyan, and the
+    // pick beside it when it was wrong.
+    renderer.showOptions([
+      { cells: best.place.cells, pos: best.place.pos, color: AI_COLOR },
+      ...(right ? [] : [{ cells: picked.place.cells, pos: picked.place.pos, color: picked.color }]),
+    ]);
+    $("qOpts").querySelectorAll("button").forEach((b, idx) => {
+      (b as HTMLButtonElement).disabled = true;
+      b.classList.toggle("is-answer", quiz!.opts[idx] === best);
+      b.classList.toggle("is-picked", idx === k);
+    });
+    const tagName = (o: QuizOption): string => (o.tag === "best" ? "AI 최선" : o.tag === "mine" ? "내가 둔 자리" : "");
+    const why = (() => {
+      const a = best.place.features;
+      const b = picked.place.features;
+      if (right) return a.holes === 0 ? "구멍을 만들지 않고 낮게 쌓는 자리예요." : "다른 후보보다 구멍과 높이를 가장 적게 늘리는 자리예요.";
+      if (a.cleared > b.cleared) return `AI 자리는 ${a.cleared}층을 지울 수 있었어요.`;
+      if (a.holes < b.holes) return `고른 자리는 구멍이 ${b.holes - a.holes}개 더 생겨요.`;
+      if (a.top < b.top) return `고른 자리는 ${b.top - a.top}층 더 높이 쌓여요.`;
+      return "고른 자리는 바닥이 더 울퉁불퉁해져요.";
+    })();
+    $("qRes").innerHTML =
+      `<div class="${right ? "ok" : "no"}">${right ? "정답이에요!" : `아쉬워요. 정답은 ${best.letter}예요.`}</div>` +
+      `<div>${why}</div>` +
+      `<table><tr><th></th><th>구멍</th><th>최고 높이</th><th>지운 층</th><th></th></tr>` +
+      quiz.opts
+        .map(
+          (o) =>
+            `<tr class="${o === best ? "best" : ""}"><td class="l" style="color:${o === best ? AI_COLOR : o.color}">${o.letter}</td>` +
+            `<td>${o.place.features.holes}</td><td>${o.place.features.top}</td><td>${o.place.features.cleared}</td><td>${tagName(o)}</td></tr>`
+        )
+        .join("") +
+      `</table>`;
+    $("qProg").textContent = `${quiz.pos + 1} / ${quiz.list.length}문제 · 맞힘 ${quiz.right}`;
+    const last = quiz.pos === quiz.list.length - 1;
+    $("qNext").textContent = last ? "결과 보기" : "다음 문제";
+    $("qNext").style.visibility = "visible";
+  }
+
+  function nextQuestion(): void {
+    if (!quiz || quiz.picked === null) return;
+    if (quiz.pos < quiz.list.length - 1) {
+      quiz.pos++;
+      ask();
+      return;
+    }
+    // Done: the score, then back to the review where it left off.
+    $("qAsk").textContent = `퀴즈 끝! ${quiz.list.length}문제 중 ${quiz.right}개를 맞혔어요.`;
+    $("qOpts").innerHTML = "";
+    $("qRes").innerHTML =
+      quiz.right === quiz.list.length
+        ? "모든 장면에서 AI와 같은 자리를 찾았어요. 다음엔 AI와 대결해 보세요."
+        : "틀린 장면은 수 목록에서 다시 볼 수 있어요. 머릿속으로 조각을 돌려보는 연습이 도움이 돼요.";
+    $("qNext").style.visibility = "hidden";
+    quiz.picked = null;
+    renderer.showOptions([]);
+  }
+
+  function exitQuiz(redraw = true): void {
+    quiz = null;
+    renderer.showOptions([]);
+    renderer.setDemoLook(false);
+    $("card").classList.remove("quizzing");
+    if (redraw) arrive(false);
+  }
+
+  $("cQuiz").addEventListener("click", () => startQuiz([at]));
+  $("practiceQuiz").addEventListener("click", () => startQuiz(queue));
+  $("qNext").addEventListener("click", nextQuestion);
+  $("qExit").addEventListener("click", () => exitQuiz());
+  $("prev").addEventListener("click", () => {
+    if (quiz) exitQuiz(false);
+    step(-1);
+  });
+  $("next").addEventListener("click", () => {
+    if (quiz) exitQuiz(false);
+    step(1);
+  });
 
   window.addEventListener("keydown", (e) => {
+    if (quiz) {
+      const k = "1234".indexOf(e.key) >= 0 ? "1234".indexOf(e.key) : "abcd".indexOf(e.key.toLowerCase());
+      if (k >= 0 && e.key.length === 1) answer(k);
+      else if (e.key === "Enter" || e.key === "ArrowRight" || e.key === "ArrowDown") nextQuestion();
+      else if (e.key === "Escape") exitQuiz();
+      else return;
+      e.preventDefault();
+      return;
+    }
     let used = true;
     switch (e.key) {
-      case "ArrowLeft": go(at - 1); break;
-      case "ArrowRight": go(at + 1); break;
+      case "ArrowLeft":
+      case "ArrowUp": step(-1); break;
+      case "ArrowRight":
+      case "ArrowDown": step(1); break;
       case "Home": go(0); break;
       case "End": go(turns.length - 1); break;
       case " ": toggle(); break;

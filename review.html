@@ -103,7 +103,7 @@
       }
 
       .side {
-        position: fixed; top: 16px; left: 16px; bottom: 112px; width: 320px;
+        position: fixed; top: 16px; left: 16px; bottom: 16px; width: 320px;
         overflow-y: auto; padding: 20px 22px; display: flex; flex-direction: column; gap: 20px;
       }
       .side .top { display: flex; align-items: center; justify-content: space-between; }
@@ -172,9 +172,81 @@
       .moments button:disabled { opacity: 0.35; cursor: default; }
       .moments button small { color: var(--faint); margin-left: auto; }
 
-      .card {
-        position: fixed; right: 16px; bottom: 112px; width: 380px; padding: 18px 20px;
+      /* Right column: the move list above, the card for the move below. */
+      .right {
+        position: fixed; top: 16px; right: 16px; bottom: 16px; width: 380px;
+        display: flex; flex-direction: column; gap: 12px;
       }
+      .card { flex: none; padding: 18px 20px; max-height: 62vh; overflow-y: auto; }
+
+      .moves { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 14px 12px 10px; }
+      .moves .mhead { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 8px; }
+      .moves .mhead h2 { font-size: 13px; color: var(--faint); font-weight: 700; letter-spacing: 1px; }
+      .moves .mhead .nav { display: flex; gap: 6px; }
+      .moves .mhead .nav button {
+        width: 30px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 12px;
+        color: var(--text); background: rgba(255,255,255,0.05); border: 1px solid var(--line);
+      }
+      .filters { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 4px 10px; }
+      .filters button {
+        font: inherit; font-size: 12px; color: var(--muted); cursor: pointer; padding: 3px 9px;
+        border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--line);
+      }
+      .filters button b { color: var(--text); margin-left: 3px; }
+      .filters button.on { border-color: var(--accent); color: var(--text); background: rgba(124,139,255,0.16); }
+      .mlist { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding-right: 2px; }
+      .mv {
+        display: grid; grid-template-columns: 4px 44px 74px 1fr 42px; align-items: center; gap: 8px;
+        width: 100%; text-align: left; font: inherit; cursor: pointer; padding: 7px 8px 7px 0;
+        background: rgba(255,255,255,0.025); border: 1px solid transparent; border-radius: 8px; color: var(--text);
+      }
+      .mv:hover { background: rgba(255,255,255,0.06); }
+      .mv.on { border-color: var(--accent); background: rgba(124,139,255,0.14); }
+      .mv .stripe { width: 4px; height: 26px; border-radius: 0 3px 3px 0; }
+      .mv .n { font-size: 13px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+      .mv .lb { font-size: 13px; font-weight: 800; }
+      .mv .note { font-size: 12px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .mv .acc { font-size: 12.5px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+      .mkeys { color: var(--faint); font-size: 11.5px; padding: 8px 6px 0; line-height: 1.6; }
+      .mkeys kbd {
+        font-family: inherit; font-size: 10.5px; color: var(--muted);
+        border: 1px solid var(--line); border-radius: 4px; padding: 0 4px;
+      }
+
+      .card .quiz-btn, .practice .quiz-btn {
+        display: block; width: 100%; margin-top: 12px; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+        color: #f0b64a; background: rgba(240,182,74,0.1); border: 1px solid rgba(240,182,74,0.5); border-radius: 10px; padding: 10px;
+      }
+      #quiz { display: none; }
+      .card.quizzing #cBody { display: none; }
+      .card.quizzing #quiz { display: block; }
+      #quiz .qtop { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      #quiz .qtitle { font-size: 13px; font-weight: 800; color: #f0b64a; letter-spacing: 1px; }
+      #quiz .qprog { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+      #quiz .qask { font-size: 17px; font-weight: 700; line-height: 1.5; }
+      #quiz .qsub { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+      #quiz .qopts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+      #quiz .qopts button {
+        font: inherit; font-size: 22px; font-weight: 900; cursor: pointer; padding: 10px 0; border-radius: 12px;
+        color: #05060a; border: 2px solid transparent;
+      }
+      #quiz .qopts button:disabled { cursor: default; opacity: 0.4; }
+      #quiz .qopts button.is-answer { opacity: 1; border-color: #fff; }
+      #quiz .qopts button.is-picked { opacity: 1; outline: 3px solid rgba(255,255,255,0.35); }
+      #quiz .qres { margin-top: 14px; font-size: 14px; line-height: 1.6; }
+      #quiz .qres .ok { color: #7cf0c0; font-weight: 800; font-size: 16px; }
+      #quiz .qres .no { color: #ff8a8a; font-weight: 800; font-size: 16px; }
+      #quiz .qres table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+      #quiz .qres th, #quiz .qres td { padding: 3px 4px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; }
+      #quiz .qres th { color: var(--faint); font-weight: 600; font-size: 12px; }
+      #quiz .qres td.l { text-align: left; font-weight: 800; }
+      #quiz .qres tr.best td { color: var(--text); }
+      #quiz .qact { display: flex; gap: 8px; margin-top: 14px; }
+      #quiz .qact button {
+        flex: 1; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer; padding: 10px; border-radius: 10px;
+        color: var(--text); background: rgba(255,255,255,0.05); border: 1px solid var(--line-hi);
+      }
+      #quiz .qact button.primary { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
       .card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
       .card .turn { color: var(--faint); font-size: 13px; font-weight: 700; }
       .card .piece { color: var(--muted); font-size: 13px; }
@@ -188,32 +260,10 @@
       .card .legend-hint { display: flex; gap: 14px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
       .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 
-      .timeline {
-        position: fixed; left: 16px; right: 16px; bottom: 16px; height: 80px;
-        display: flex; align-items: center; gap: 14px; padding: 0 16px;
-      }
-      .timeline > button {
-        flex: none; width: 44px; height: 44px; border-radius: 10px; cursor: pointer;
-        font-size: 18px; color: var(--text); background: rgba(255,255,255,0.05); border: 1px solid var(--line);
-      }
-      .timeline > button:hover { border-color: var(--accent); }
-      .dots { flex: 1; display: flex; align-items: center; gap: 4px; overflow-x: auto; padding: 8px 2px; }
-      .dot {
-        flex: 1 0 14px; max-width: 30px; height: 26px; border-radius: 5px; cursor: pointer; border: 2px solid transparent;
-        opacity: 0.55; transition: opacity 0.12s, transform 0.12s;
-      }
-      .dot:hover { opacity: 0.85; }
-      .dot.on { opacity: 1; border-color: #fff; transform: scaleY(1.25); }
-      .keys { flex: none; color: var(--faint); font-size: 12px; line-height: 1.7; text-align: right; }
-      .keys kbd {
-        font-family: inherit; font-size: 11px; color: var(--muted);
-        border: 1px solid var(--line); border-radius: 4px; padding: 0 5px;
-      }
-
       @media (max-width: 900px) {
         .side { bottom: auto; max-height: 38vh; width: auto; right: 16px; }
-        .card { left: 16px; width: auto; }
-        .keys { display: none; }
+        .right { top: auto; left: 16px; width: auto; max-height: 56vh; }
+        .moves { display: none; }
       }
     </style>
   </head>
@@ -284,6 +334,7 @@
           <h2>다음 연습 과제</h2>
           <p class="focus" id="tipFocus"></p>
           <p class="tip" id="tip"></p>
+          <button type="button" class="quiz-btn" id="practiceQuiz">실수 장면으로 퀴즈 풀기</button>
           <a class="cta" href="./versus.html">AI와 대결하며 연습하기 →</a>
         </section>
 
@@ -293,32 +344,52 @@
         </section>
       </aside>
 
-      <div class="card glass" id="card" aria-live="polite">
-        <div class="head">
-          <span class="turn" id="cTurn"></span>
-          <span class="badge" id="cBadge"></span>
-          <span class="piece" id="cPiece"></span>
-        </div>
-        <div class="lead" id="cLead"></div>
-        <ul id="cFacts"></ul>
-        <p class="turning" id="cTurning"></p>
-        <table class="compare" id="cCompare"></table>
-        <div class="legend-hint" id="cLegend">
-          <span><i class="swatch" style="background:#ffffff"></i>내가 둔 자리</span>
-          <span><i class="swatch" style="background:#2fd6e6"></i>AI 추천 (홀로그램)</span>
-        </div>
-        <div class="rank"><span id="cRank"></span><span id="cHint"></span></div>
-      </div>
+      <div class="right">
+        <section class="moves glass" aria-label="수 목록">
+          <div class="mhead">
+            <h2>수 목록</h2>
+            <div class="nav">
+              <button type="button" id="prev" aria-label="이전 수">▲</button>
+              <button type="button" id="next" aria-label="다음 수">▼</button>
+            </div>
+          </div>
+          <div class="filters" id="filters"></div>
+          <div class="mlist" id="mlist"></div>
+          <div class="mkeys"><kbd>↑</kbd><kbd>↓</kbd> 한 수씩 · <kbd>Space</kbd> 추천 보기 · 드래그로 시점 돌리기</div>
+        </section>
 
-      <nav class="timeline glass" aria-label="수 이동">
-        <button type="button" id="prev" aria-label="이전 수">◀</button>
-        <div class="dots" id="dots"></div>
-        <button type="button" id="next" aria-label="다음 수">▶</button>
-        <div class="keys">
-          <kbd>←</kbd><kbd>→</kbd> 한 수씩 · <kbd>Space</kbd> 추천 보기<br />
-          마우스 드래그로 시점 돌리기 · 휠 확대
+        <div class="card glass" id="card" aria-live="polite">
+          <div id="cBody">
+            <div class="head">
+              <span class="turn" id="cTurn"></span>
+              <span class="badge" id="cBadge"></span>
+              <span class="piece" id="cPiece"></span>
+            </div>
+            <div class="lead" id="cLead"></div>
+            <ul id="cFacts"></ul>
+            <p class="turning" id="cTurning"></p>
+            <table class="compare" id="cCompare"></table>
+            <div class="legend-hint" id="cLegend">
+              <span><i class="swatch" style="background:#ffffff"></i>내가 둔 자리</span>
+              <span><i class="swatch" style="background:#2fd6e6"></i>AI 추천 (홀로그램)</span>
+            </div>
+            <div class="rank"><span id="cRank"></span><span id="cHint"></span></div>
+            <button type="button" class="quiz-btn" id="cQuiz">이 장면으로 퀴즈: AI처럼 생각해보기</button>
+          </div>
+
+          <div id="quiz">
+            <div class="qtop"><span class="qtitle">AI처럼 생각해보기</span><span class="qprog" id="qProg"></span></div>
+            <p class="qask" id="qAsk"></p>
+            <p class="qsub">수조를 돌려보며 색깔 블록 중 AI가 고른 자리를 맞혀보세요. 숫자키 1~4로도 고를 수 있어요.</p>
+            <div class="qopts" id="qOpts"></div>
+            <div class="qres" id="qRes"></div>
+            <div class="qact">
+              <button type="button" id="qExit">그만하기</button>
+              <button type="button" class="primary" id="qNext">다음 문제</button>
+            </div>
+          </div>
         </div>
-      </nav>
+      </div>
     </div>
 
     <script type="module" src="/src/review/main.ts"></script>

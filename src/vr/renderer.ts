@@ -87,6 +87,9 @@ export class Renderer {
   private readonly guidePool: Mesh[] = [];
   private readonly nextPool: Mesh[] = [];
   private readonly hintPool: Mesh[] = [];
+  private readonly optionPool: Mesh[] = [];
+  private optionMaster: Mesh | null = null;
+  private readonly optionMats = new Map<string, StandardMaterial>();
   private readonly flashPool: Mesh[] = [];
   private readonly blockedPool: Mesh[] = [];
   private blockedMaster: Mesh | null = null;
@@ -343,6 +346,41 @@ export class Renderer {
     this.hideFrom(this.guidePool, guides);
 
     this.drawNext(game);
+  }
+
+  /**
+   * Several candidate placements at once, each in its own colour — the
+   * review's quiz, where the player picks the engine's choice from among
+   * them. An empty list clears them.
+   */
+  showOptions(options: { cells: IVec3[]; pos: IVec3; color: string }[]): void {
+    if (!this.optionMaster) {
+      this.optionMaster = this.makeMaster(
+        "option",
+        MeshBuilder.CreateBox("option", { size: CELL * 0.86 }, this.scene)
+      );
+    }
+    let n = 0;
+    for (const o of options) {
+      let m = this.optionMats.get(o.color);
+      if (!m) {
+        m = new StandardMaterial("option" + o.color, this.scene);
+        const c = Color3.FromHexString(o.color);
+        // Strong and nearly opaque: four of these share the tank and have to
+        // be told apart at a glance, by colour alone.
+        m.diffuseColor = c.scale(0.55);
+        m.emissiveColor = c.scale(0.85);
+        m.specularColor = new Color3(0, 0, 0);
+        m.alpha = 0.88;
+        this.optionMats.set(o.color, m);
+      }
+      for (const c of o.cells) {
+        const mesh = this.borrow(this.optionPool, this.optionMaster, n++);
+        mesh.position.copyFrom(cellToLocal(o.pos.x + c.x, o.pos.y + c.y, o.pos.z + c.z));
+        mesh.material = m;
+      }
+    }
+    this.hideFrom(this.optionPool, n);
   }
 
   /**
