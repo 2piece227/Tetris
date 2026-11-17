@@ -1,0 +1,486 @@
+{
+  "config": {
+    "POP": 20,
+    "ELITE": 5,
+    "GENERATIONS": 30,
+    "SEEDS_PER_GEN": 10,
+    "CAP": 600,
+    "NOISE": 4
+  },
+  "log": [
+    {
+      "gen": 0,
+      "best": 156.9,
+      "eliteMean": 132.68,
+      "popMean": 41.68,
+      "meanWeights": {
+        "cleared": 30,
+        "top": -5.196,
+        "holes": -16.668,
+        "bumpiness": -2.249
+      },
+      "meanFitness": 142.6,
+      "handFitness": 142.6,
+      "seconds": 41
+    },
+    {
+      "gen": 1,
+      "best": 160.3,
+      "eliteMean": 134.62,
+      "popMean": 69.13,
+      "meanWeights": {
+        "cleared": 30,
+        "top": -6.731,
+        "holes": -31.396,
+        "bumpiness": -3.553
+      },
+      "meanFitness": 149.3,
+      "handFitness": 114.1,
+      "seconds": 209
+    },
+    {
+      "gen": 2,
+      "best": 164.7,
+      "eliteMean": 157.96,
+      "popMean": 108.75,
+      "meanWeights": {
+        "cleared": 30,
+        "top": -1.791,
+        "holes": -39.95,
+        "bumpiness": -6.158
+      },
+      "meanFitness": 156,
+      "handFitness": 108.7,
+      "seconds": 369
+    },
+    {
+      "gen": 3,
+      "best": 162.7,
+      "eliteMean": 155.3,
+      "popMean": 98.2,
+      "meanWeights": {
+        "cleared": 30,
+        "top": -1.233,
+        "holes": -30.848,
+        "bumpiness": -3.282
+      },
+      "meanFitness": 154.9,
+      "handFitness": 130.2,
+      "seconds": 550
+    },
+    {
+      "gen": 4,
+      "best": 162.6,
+      "eliteMean": 160.96,
+      "popMean": 120.69,
+      "meanWeights": {
+        "cleared": 30,
+        "top": -0.185,
+        "holes": -33.531,
+        "bumpiness": -4.809
+      },
+      "meanFitness": 164.7,
+      "handFitness": 134,
+      "seconds": 763
+    },
+    {
+      "gen": 5,
+      "best": 163.5,
+      "eliteMean": 162.74,
+      "popMean": 132.79,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 1.699,
+        "holes": -29.743,
+        "bumpiness": -4.1
+      },
+      "meanFitness": 139.6,
+      "handFitness": 143.2,
+      "seconds": 913
+    },
+    {
+      "gen": 6,
+      "best": 164.2,
+      "eliteMean": 163.34,
+      "popMean": 138.21,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 3.81,
+        "holes": -25.063,
+        "bumpiness": -3.466
+      },
+      "meanFitness": 162.8,
+      "handFitness": 144.6,
+      "seconds": 1094
+    },
+    {
+      "gen": 7,
+      "best": 164.7,
+      "eliteMean": 161.82,
+      "popMean": 137.04,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.411,
+        "holes": -26.837,
+        "bumpiness": -3.386
+      },
+      "meanFitness": 163.1,
+      "handFitness": 134.3,
+      "seconds": 1182
+    },
+    {
+      "gen": 8,
+      "best": 164.5,
+      "eliteMean": 163.26,
+      "popMean": 124.08,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 4.193,
+        "holes": -27.25,
+        "bumpiness": -3.308
+      },
+      "meanFitness": 148.2,
+      "handFitness": 137.1,
+      "seconds": 1289
+    },
+    {
+      "gen": 9,
+      "best": 163,
+      "eliteMean": 162.08,
+      "popMean": 140.74,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.312,
+        "holes": -30.966,
+        "bumpiness": -4.188
+      },
+      "meanFitness": 163.3,
+      "handFitness": 146.8,
+      "seconds": 1490
+    },
+    {
+      "gen": 10,
+      "best": 163.7,
+      "eliteMean": 161.56,
+      "popMean": 120.96,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.233,
+        "holes": -35.425,
+        "bumpiness": -4.828
+      },
+      "meanFitness": 163.9,
+      "handFitness": 120.8,
+      "seconds": 1619
+    },
+    {
+      "gen": 11,
+      "best": 165.6,
+      "eliteMean": 163.58,
+      "popMean": 148.19,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 3.21,
+        "holes": -38.954,
+        "bumpiness": -4.552
+      },
+      "meanFitness": 164.3,
+      "handFitness": 126.1,
+      "seconds": 1951
+    },
+    {
+      "gen": 12,
+      "best": 163.7,
+      "eliteMean": 163.36,
+      "popMean": 153.11,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 2.732,
+        "holes": -36.658,
+        "bumpiness": -4.399
+      },
+      "meanFitness": 163.1,
+      "handFitness": 122.6,
+      "seconds": 2179
+    },
+    {
+      "gen": 13,
+      "best": 164.5,
+      "eliteMean": 164.04,
+      "popMean": 155.28,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 3.658,
+        "holes": -40.551,
+        "bumpiness": -4.907
+      },
+      "meanFitness": 164.5,
+      "handFitness": 130.1,
+      "seconds": 2360
+    },
+    {
+      "gen": 14,
+      "best": 164.5,
+      "eliteMean": 164.22,
+      "popMean": 153.12,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.162,
+        "holes": -42.314,
+        "bumpiness": -5.274
+      },
+      "meanFitness": 164.8,
+      "handFitness": 134.5,
+      "seconds": 2542
+    },
+    {
+      "gen": 15,
+      "best": 164.8,
+      "eliteMean": 164.42,
+      "popMean": 157.34,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.692,
+        "holes": -43.978,
+        "bumpiness": -5.536
+      },
+      "meanFitness": 156.6,
+      "handFitness": 118.9,
+      "seconds": 2725
+    },
+    {
+      "gen": 16,
+      "best": 164.7,
+      "eliteMean": 163.92,
+      "popMean": 150.79,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 7.058,
+        "holes": -42.064,
+        "bumpiness": -5.973
+      },
+      "meanFitness": 165,
+      "handFitness": 141.9,
+      "seconds": 3014
+    },
+    {
+      "gen": 17,
+      "best": 165.5,
+      "eliteMean": 164.76,
+      "popMean": 157.05,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 7.949,
+        "holes": -43.794,
+        "bumpiness": -6.027
+      },
+      "meanFitness": 164.8,
+      "handFitness": 145.2,
+      "seconds": 3344
+    },
+    {
+      "gen": 18,
+      "best": 164.8,
+      "eliteMean": 163.98,
+      "popMean": 158.85,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 8.265,
+        "holes": -45.591,
+        "bumpiness": -4.897
+      },
+      "meanFitness": 159.8,
+      "handFitness": 88.2,
+      "seconds": 3583
+    },
+    {
+      "gen": 19,
+      "best": 165,
+      "eliteMean": 164.72,
+      "popMean": 151.49,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 7.841,
+        "holes": -43.915,
+        "bumpiness": -5.915
+      },
+      "meanFitness": 162.8,
+      "handFitness": 107.7,
+      "seconds": 3777
+    },
+    {
+      "gen": 20,
+      "best": 164.4,
+      "eliteMean": 164.14,
+      "popMean": 158.31,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.338,
+        "holes": -45.987,
+        "bumpiness": -5.566
+      },
+      "meanFitness": 162.9,
+      "handFitness": 133,
+      "seconds": 4171
+    },
+    {
+      "gen": 21,
+      "best": 165.2,
+      "eliteMean": 164.72,
+      "popMean": 161.03,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.127,
+        "holes": -48.508,
+        "bumpiness": -5.814
+      },
+      "meanFitness": 154.1,
+      "handFitness": 117.5,
+      "seconds": 4399
+    },
+    {
+      "gen": 22,
+      "best": 164.7,
+      "eliteMean": 164.3,
+      "popMean": 159.25,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.808,
+        "holes": -49.093,
+        "bumpiness": -5.763
+      },
+      "meanFitness": 164.5,
+      "handFitness": 126.9,
+      "seconds": 4557
+    },
+    {
+      "gen": 23,
+      "best": 164.9,
+      "eliteMean": 164.62,
+      "popMean": 157.89,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.871,
+        "holes": -47.171,
+        "bumpiness": -5.181
+      },
+      "meanFitness": 155.1,
+      "handFitness": 133.6,
+      "seconds": 4623
+    },
+    {
+      "gen": 24,
+      "best": 165.1,
+      "eliteMean": 164.34,
+      "popMean": 153.5,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.215,
+        "holes": -47.133,
+        "bumpiness": -5.563
+      },
+      "meanFitness": 163.6,
+      "handFitness": 112.9,
+      "seconds": 4687
+    },
+    {
+      "gen": 25,
+      "best": 165.6,
+      "eliteMean": 164.6,
+      "popMean": 159.04,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.408,
+        "holes": -45.618,
+        "bumpiness": -5.342
+      },
+      "meanFitness": 165.6,
+      "handFitness": 126.4,
+      "seconds": 4756
+    },
+    {
+      "gen": 26,
+      "best": 165,
+      "eliteMean": 164.46,
+      "popMean": 156.34,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 6.332,
+        "holes": -46.485,
+        "bumpiness": -5.177
+      },
+      "meanFitness": 164.3,
+      "handFitness": 137.4,
+      "seconds": 4867
+    },
+    {
+      "gen": 27,
+      "best": 165.5,
+      "eliteMean": 164.56,
+      "popMean": 159.24,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.457,
+        "holes": -44.129,
+        "bumpiness": -4.863
+      },
+      "meanFitness": 155.3,
+      "handFitness": 128.1,
+      "seconds": 5032
+    },
+    {
+      "gen": 28,
+      "best": 165.2,
+      "eliteMean": 164.6,
+      "popMean": 158.6,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 5.398,
+        "holes": -44.097,
+        "bumpiness": -4.962
+      },
+      "meanFitness": 154.1,
+      "handFitness": 126.3,
+      "seconds": 5194
+    },
+    {
+      "gen": 29,
+      "best": 165,
+      "eliteMean": 162.94,
+      "popMean": 155.49,
+      "meanWeights": {
+        "cleared": 30,
+        "top": 3.887,
+        "holes": -45.621,
+        "bumpiness": -4.98
+      },
+      "meanFitness": 159.4,
+      "handFitness": 112.6,
+      "seconds": 5330
+    }
+  ],
+  "test": {
+    "hand": {
+      "weights": {
+        "cleared": 30,
+        "top": -4,
+        "holes": -12,
+        "bumpiness": -1
+      },
+      "layers": 120,
+      "survivedAll": 13,
+      "pieces": 475.2
+    },
+    "learned": {
+      "weights": {
+        "cleared": 30,
+        "top": 3.887,
+        "holes": -45.621,
+        "bumpiness": -4.98
+      },
+      "layers": 160.13,
+      "survivedAll": 28,
+      "pieces": 587.2
+    }
+  }
+}
