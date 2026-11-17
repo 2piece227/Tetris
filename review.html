@@ -6,31 +6,70 @@
     <title>AI 리뷰 · 블럭아웃</title>
     <style>
       /* ─── Code entry ─────────────────────────────────────────────────────── */
-      #entryScreen { display: flex; flex-direction: column; align-items: center; width: 100%; }
+      /* A pit floor receding into the dark, drifting toward the viewer: the
+         same Blockout look as the game, in CSS so the entry screen loads at
+         once and costs the PC nothing while it waits for the next visitor. */
+      body.review-page:not(.reporting) { display: block; padding: 0; min-height: 100%; overflow: hidden; }
+      #entryScreen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; }
+      .floor { position: fixed; inset: 0; overflow: hidden; perspective: 420px; pointer-events: none; }
+      .floor::before {
+        content: ""; position: absolute; left: -50%; right: -50%; top: 46%; height: 140%;
+        background-image:
+          linear-gradient(rgba(91,125,255,0.38) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(91,125,255,0.38) 1px, transparent 1px);
+        background-size: 64px 64px;
+        transform: rotateX(72deg); transform-origin: top center;
+        animation: drift 6s linear infinite;
+        mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 70%, transparent 100%);
+      }
+      @keyframes drift { to { background-position: 0 64px; } }
+      .floor::after {
+        content: ""; position: absolute; inset: 0;
+        background: radial-gradient(ellipse at 50% 42%, rgba(124,139,255,0.16), transparent 60%);
+      }
+
+      .entry-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 18px; width: min(560px, 100%); }
       .entry {
-        display: flex; flex-direction: column; align-items: center; gap: 22px;
-        width: 100%; max-width: 520px; padding: 36px 28px;
-        background: var(--panel); border: 2px solid var(--line); border-radius: 18px;
+        display: flex; flex-direction: column; align-items: center; gap: 22px; width: 100%;
+        padding: 38px 32px 32px; text-align: center;
+        background: rgba(10,14,28,0.72); border: 1px solid rgba(124,139,255,0.28); border-radius: 22px;
+        -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.45);
       }
-      .entry label { color: var(--muted); font-size: 16px; }
-      .digits { display: flex; gap: 12px; }
+      .entry .eyebrow { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: 3px; }
+      .entry h1 { font-size: clamp(28px, 5vw, 38px); font-weight: 900; letter-spacing: 1px; margin-top: -8px; }
+      .entry .sub { color: var(--muted); font-size: 15.5px; line-height: 1.6; margin-top: -10px; }
+      .digits { display: flex; gap: 14px; margin-top: 4px; }
       .digits input {
-        width: 72px; height: 92px; text-align: center; font-size: 48px; font-weight: 800;
-        color: var(--text); background: var(--bg); border: 2px solid var(--line-hi); border-radius: 14px;
-        font-family: inherit; caret-color: var(--accent);
+        width: 84px; height: 108px; text-align: center; font-size: 56px; font-weight: 900;
+        color: var(--text); background: rgba(5,6,10,0.7); border: 2px solid var(--line-hi); border-radius: 16px;
+        font-family: inherit; caret-color: var(--accent); font-variant-numeric: tabular-nums;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
       }
-      .digits input:focus { outline: none; border-color: var(--accent); }
-      .entry button {
-        font-size: 18px; font-weight: 700; color: var(--accent-ink); background: var(--accent);
-        border: none; border-radius: 10px; padding: 14px 34px; cursor: pointer; font-family: inherit;
+      .digits input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 4px rgba(124,139,255,0.22); transform: translateY(-2px); }
+      .digits input.filled { border-color: rgba(124,240,192,0.7); }
+      .digits.shake { animation: shake 0.35s; }
+      @keyframes shake { 25% { transform: translateX(-8px); } 50% { transform: translateX(8px); } 75% { transform: translateX(-4px); } }
+      .entry button[type="submit"] {
+        width: 100%; font-size: 18px; font-weight: 800; color: var(--accent-ink); background: var(--accent);
+        border: none; border-radius: 12px; padding: 16px; cursor: pointer; font-family: inherit;
       }
-      .entry button:disabled { opacity: 0.4; cursor: default; }
-      #status { min-height: 1.6em; color: var(--muted); font-size: 15px; text-align: center; line-height: 1.6; }
-      .entry-note { color: var(--faint); font-size: 13.5px; margin-top: 18px; text-align: center; }
-      #status .link {
-        margin-top: 8px; font: inherit; font-size: 14px; color: var(--accent); background: none;
-        border: 1px solid var(--line-hi); border-radius: 8px; padding: 6px 14px; cursor: pointer;
+      .entry button[type="submit"]:disabled { opacity: 0.35; cursor: default; }
+      .entry .keys-hint { color: var(--faint); font-size: 12.5px; margin-top: -8px; }
+      .entry .keys-hint kbd {
+        font-family: inherit; font-size: 11.5px; color: var(--muted);
+        border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; margin: 0 2px;
       }
+      #status { min-height: 1.4em; color: var(--muted); font-size: 15px; text-align: center; line-height: 1.6; }
+      #status.error { color: #ff8a8a; }
+      .alt {
+        font: inherit; font-size: 14px; color: var(--muted); background: rgba(10,14,28,0.55);
+        border: 1px solid var(--line); border-radius: 999px; padding: 9px 18px; cursor: pointer;
+      }
+      .alt:hover { color: var(--text); border-color: var(--line-hi); }
+      #entryScreen .back { position: fixed; top: 16px; left: 16px; }
+      @media (max-width: 520px) { .digits input { width: 64px; height: 84px; font-size: 42px; } .digits { gap: 10px; } }
 
       /* ─── AI analysing ───────────────────────────────────────────────────── */
       #analysing {
@@ -152,25 +191,26 @@
   </head>
   <body class="review-page">
     <div id="entryScreen">
+      <div class="floor" aria-hidden="true"></div>
       <a class="back" href="./">← 메뉴</a>
 
-      <header class="title">
-        <h1>AI 리뷰</h1>
-        <p>VR 체험이 끝나면 화면에 나온 코드를 입력하세요</p>
-      </header>
-
-      <form class="entry" id="form" autocomplete="off">
-        <label for="d0">리뷰 코드 4자리</label>
-        <div class="digits">
-          <input id="d0" inputmode="numeric" aria-label="첫째 자리" />
-          <input inputmode="numeric" aria-label="둘째 자리" />
-          <input inputmode="numeric" aria-label="셋째 자리" />
-          <input inputmode="numeric" aria-label="넷째 자리" />
-        </div>
-        <button type="submit" id="submit" disabled>리뷰 보기</button>
-        <div id="status" role="status"></div>
-      </form>
-      <p class="entry-note">지금은 VR을 한 같은 기기에서만 코드로 판을 찾을 수 있어요. 부스용 기록 서버는 준비 중이에요.</p>
+      <div class="entry-wrap">
+        <form class="entry" id="form" autocomplete="off">
+          <span class="eyebrow">AI 리뷰</span>
+          <h1>리뷰 코드를 입력하세요</h1>
+          <p class="sub">VR 체험이 끝나면 화면에 나온 4자리 숫자예요.<br />AI가 내가 둔 수를 하나하나 되짚어 줘요.</p>
+          <div class="digits" id="digits">
+            <input id="d0" inputmode="numeric" aria-label="첫째 자리" />
+            <input inputmode="numeric" aria-label="둘째 자리" />
+            <input inputmode="numeric" aria-label="셋째 자리" />
+            <input inputmode="numeric" aria-label="넷째 자리" />
+          </div>
+          <div id="status" role="status"></div>
+          <button type="submit" id="submit" disabled>리뷰 보기</button>
+          <p class="keys-hint">숫자 4개를 다 넣으면 바로 열려요 · 지우기 <kbd>Backspace</kbd></p>
+        </form>
+        <button type="button" class="alt" id="sampleLink">코드가 없나요? 샘플 리뷰 보기</button>
+      </div>
     </div>
 
     <div id="analysing" role="status" aria-live="polite">

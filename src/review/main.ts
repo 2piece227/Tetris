@@ -11,7 +11,9 @@ const boxes = [...form.querySelectorAll<HTMLInputElement>(".digits input")];
 const code = (): string => boxes.map((b) => b.value).join("");
 
 // One box per digit, with focus walking along as you type and back on
-// Backspace, so a visitor can punch the code in without looking down.
+// Backspace, so a visitor can punch the code in without looking down. The
+// fourth digit opens the review straight away: at the booth there is a queue,
+// and the button is one more thing to find.
 boxes.forEach((box, i) => {
   box.addEventListener("input", () => {
     // More than one digit at once is a paste: spread it over the boxes from
@@ -24,8 +26,12 @@ boxes.forEach((box, i) => {
       boxes[at++].value = d;
     }
     if (digits.length) boxes[Math.min(at, boxes.length - 1)].focus();
-    submit.disabled = code().length !== boxes.length;
+    for (const b of boxes) b.classList.toggle("filled", b.value !== "");
+    const full = code().length === boxes.length;
+    submit.disabled = !full;
     status.textContent = "";
+    status.classList.remove("error");
+    if (full && digits.length) form.requestSubmit();
   });
   box.addEventListener("keydown", (e) => {
     if (e.key === "Backspace" && !box.value && i > 0) boxes[i - 1].focus();
@@ -85,8 +91,20 @@ async function lookUp(c: string): Promise<void> {
   const { recordStore } = await import("../record/store");
   const record = await recordStore.load(c);
   if (!record) {
-    status.innerHTML = `코드 ${c}로 저장된 판을 찾을 수 없어요.<br /><button type="button" class="link" id="showSample">샘플 리뷰 보기</button>`;
-    document.getElementById("showSample")!.addEventListener("click", () => void analyse("sample"));
+    // Clear the boxes and shake them: the visitor retypes straight away
+    // rather than hunting for which digit was wrong.
+    status.textContent = `코드 ${c}로 저장된 판이 없어요. 다시 확인해 주세요.`;
+    status.classList.add("error");
+    const row = document.getElementById("digits")!;
+    row.classList.remove("shake");
+    void row.offsetWidth;
+    row.classList.add("shake");
+    for (const b of boxes) {
+      b.value = "";
+      b.classList.remove("filled");
+    }
+    submit.disabled = true;
+    boxes[0].focus();
     return;
   }
   status.textContent = "";
@@ -111,3 +129,5 @@ async function openFromLink(): Promise<void> {
   await analyse({ record });
 }
 void openFromLink();
+
+document.getElementById("sampleLink")!.addEventListener("click", () => void analyse("sample"));
