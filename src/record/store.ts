@@ -84,7 +84,10 @@ class SupabaseStore implements RecordStore {
       method: "POST",
       headers: {
         apikey: this.key,
-        Authorization: `Bearer ${this.key}`,
+        // Legacy anon keys are JWTs and go in Authorization too. The newer
+        // publishable keys (sb_publishable_…) are not JWTs and must not: the
+        // gateway maps the apikey header to the anon role on its own.
+        ...(this.key.startsWith("eyJ") ? { Authorization: `Bearer ${this.key}` } : {}),
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
