@@ -156,6 +156,33 @@
       .stats b { display: block; font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
       .stats span { color: var(--muted); font-size: 12.5px; }
 
+      /* Two players: the parts that belong to only one of the two modes. */
+      body:not(.two-players) .only-2p { display: none !important; }
+      body.two-players .only-ai { display: none !important; }
+
+      .keys.half-keys {
+        transform: none; gap: 10px; padding: 8px 12px; justify-content: center; font-size: 12px;
+        width: calc(50% - var(--gutter) - 12px);
+      }
+      .keys.half-keys.k1 { left: calc(var(--gutter) + 4px); }
+      .keys.half-keys.k2 { left: calc(50% + 8px); }
+      .keys.half-keys b { color: var(--text); }
+      .keys.half-keys .grp { gap: 3px; }
+      .keys.half-keys kbd { min-width: 22px; height: 22px; padding: 0 5px; font-size: 11px; }
+
+      .pvp-keys { width: 100%; border-collapse: separate; border-spacing: 0 8px; font-size: 14px; color: var(--muted); }
+      .pvp-keys th { font-size: 15px; color: var(--text); font-weight: 800; }
+      .pvp-keys td { text-align: center; }
+      .pvp-keys td:first-child { text-align: left; white-space: nowrap; }
+      .pvp-keys kbd { margin: 1px; }
+
+      .pvp-stats { width: 100%; border-collapse: collapse; margin-top: 22px; font-variant-numeric: tabular-nums; }
+      .pvp-stats th, .pvp-stats td { padding: 10px 6px; text-align: center; font-size: 20px; font-weight: 800; }
+      .pvp-stats thead th { font-size: 12.5px; font-weight: 600; color: var(--muted); padding: 4px 6px; }
+      .pvp-stats tbody tr { background: rgba(255,255,255,0.04); }
+      .pvp-stats tbody tr.winner { background: rgba(124,240,192,0.14); }
+      .pvp-stats tbody tr.winner th { color: #7cf0c0; }
+
       @media (max-width: 900px) {
         .side { display: none; }
         :root { --gutter: 0px; }
@@ -216,7 +243,22 @@
       <div class="flash" id="flash0"></div>
       <div class="flash" id="flash1"></div>
 
-      <div class="keys glass">
+      <div class="keys glass half-keys k1 only-2p">
+        <b>1P</b>
+        <span class="grp"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
+        <span class="grp"><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd></span>
+        <span class="grp"><kbd>Z</kbd><kbd>C</kbd><kbd>V</kbd></span>
+        <span class="grp"><kbd>Space</kbd></span>
+      </div>
+      <div class="keys glass half-keys k2 only-2p">
+        <b>2P</b>
+        <span class="grp"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></span>
+        <span class="grp"><kbd>U</kbd><kbd>I</kbd><kbd>O</kbd></span>
+        <span class="grp"><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd></span>
+        <span class="grp"><kbd>Enter</kbd></span>
+      </div>
+
+      <div class="keys glass only-ai">
         <span class="grp">이동 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
         <span class="grp">회전 <kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd></span>
         <span class="grp">반대로 <kbd>Z</kbd><kbd>C</kbd><kbd>V</kbd></span>
@@ -226,21 +268,33 @@
 
     <div class="overlay show" id="start">
       <div class="card glass">
-        <h1>AI와 대결</h1>
-        <p class="sub">
+        <h1 class="only-2p">2인 대결</h1>
+        <p class="sub only-2p">
+          한 키보드로 둘이 겨뤄요. 두 사람에게 같은 순서로 조각이 나와요.<br />
+          층을 지우면 그만큼 상대 바닥에 층이 올라가요. 먼저 꼭대기에 닿으면 져요.
+        </p>
+        <h1 class="only-ai">AI와 대결</h1>
+        <p class="sub only-ai">
           위에서 내려다보는 고정 시점이에요. 아래층은 기억으로 판단해야 해요.<br />
           층을 지우면 그만큼 상대 바닥에 층이 올라가요. 먼저 꼭대기에 닿으면 져요.
         </p>
 
-        <h2>AI 난이도</h2>
-        <div class="levels" id="levels">
+        <h2 class="only-ai">AI 난이도</h2>
+        <div class="levels only-ai" id="levels">
           <button type="button" data-level="easy"><b>쉬움</b><small>천천히 둬요</small></button>
           <button type="button" data-level="normal"><b>보통</b><small>사람과 비슷하게</small></button>
           <button type="button" data-level="hard"><b>어려움</b><small>빠르고 쉼 없이</small></button>
         </div>
 
         <h2>조작</h2>
-        <div class="map">
+        <table class="pvp-keys only-2p">
+          <tr><td></td><th>1P</th><th>2P</th></tr>
+          <tr><td>이동</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></td></tr>
+          <tr><td>회전</td><td><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd></td><td><kbd>U</kbd><kbd>I</kbd><kbd>O</kbd></td></tr>
+          <tr><td>반대로</td><td><kbd>Z</kbd><kbd>C</kbd><kbd>V</kbd></td><td><kbd>J</kbd><kbd>K</kbd><kbd>L</kbd></td></tr>
+          <tr><td>떨구기</td><td><kbd>Space</kbd></td><td><kbd>Enter</kbd></td></tr>
+        </table>
+        <div class="map only-ai">
           <span>이동</span><span class="ks"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>
           <span>회전</span><span class="ks"><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd> <span style="margin:0 4px">반대로</span> <kbd>Z</kbd><kbd>C</kbd><kbd>V</kbd></span>
           <span>떨구기</span><span class="ks"><kbd>Space</kbd></span>
@@ -259,14 +313,18 @@
       <div class="card glass">
         <h1 id="resultTitle">승리!</h1>
         <p class="sub" id="resultSub"></p>
-        <div class="stats">
+        <table class="pvp-stats only-2p">
+          <thead><tr><th></th><th>점수</th><th>지운 층</th><th>보낸 공격</th><th>받은 공격</th></tr></thead>
+          <tbody id="pvpRows"></tbody>
+        </table>
+        <div class="stats only-ai">
           <div><b id="rLayers">0</b><span>지운 층</span></div>
           <div><b id="rSent">0</b><span>보낸 공격</span></div>
           <div><b id="rRecv">0</b><span>받은 공격</span></div>
           <div><b id="rTime">0:00</b><span>대결 시간</span></div>
         </div>
         <div class="actions">
-          <button type="button" id="levelBtn"><kbd>Esc</kbd> 난이도 바꾸기</button>
+          <button type="button" id="levelBtn"><kbd>Esc</kbd> <span class="only-ai">난이도 바꾸기</span><span class="only-2p">처음 화면</span></button>
           <button type="button" class="primary" id="restartBtn"><kbd>Space</kbd> 다시 하기</button>
         </div>
       </div>

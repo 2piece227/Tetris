@@ -2,7 +2,8 @@ import type { Sfx } from "../audio/sfx";
 import type { Game } from "../game/game";
 
 /**
- * The human side of versus.
+ * The human sides of versus: one player against the machine, or two sharing
+ * this keyboard, one at each end of it.
  *
  * Laid out for a panel with a four-way stick plus seven buttons — both
  * directions on each of the three axes, and hard drop — so a player can always
@@ -28,7 +29,7 @@ interface Binding {
   hardDrop: string;
 }
 
-export const KEYS: Binding = {
+export const KEYS_1P: Binding = {
   moveLeft: "KeyA",
   moveRight: "KeyD",
   moveAway: "KeyW",
@@ -42,11 +43,25 @@ export const KEYS: Binding = {
   hardDrop: "Space",
 };
 
+export const KEYS_2P: Binding = {
+  moveLeft: "ArrowLeft",
+  moveRight: "ArrowRight",
+  moveAway: "ArrowUp",
+  moveToward: "ArrowDown",
+  rotX: "KeyU",
+  rotY: "KeyI",
+  rotZ: "KeyO",
+  rotXBack: "KeyJ",
+  rotYBack: "KeyK",
+  rotZBack: "KeyL",
+  hardDrop: "Enter",
+};
+
 /**
  * `enabled` gates play so the start card and the result card can swallow input
  * without the bindings having to know anything about game phase.
  */
-export function attachKeyboard(game: Game, sfx: Sfx, enabled: () => boolean): void {
+export function attachKeyboard(game: Game, keys: Binding, sfx: Sfx, enabled: () => boolean): void {
   window.addEventListener("keydown", (e) => {
     if (e.repeat) {
       // Held keys must not machine-gun. Auto-repeat on hard drop buries the
@@ -60,17 +75,17 @@ export function attachKeyboard(game: Game, sfx: Sfx, enabled: () => boolean): vo
     if (!enabled()) return;
     let used = true;
     switch (e.code) {
-      case KEYS.moveLeft: game.tryMove(-1, 0); break;
-      case KEYS.moveRight: game.tryMove(1, 0); break;
-      case KEYS.moveAway: game.tryMove(0, 1); break;
-      case KEYS.moveToward: game.tryMove(0, -1); break;
-      case KEYS.rotX: game.tryRotate("x", 1); break;
-      case KEYS.rotY: game.tryRotate("y", 1); break;
-      case KEYS.rotZ: game.tryRotate("z", 1); break;
-      case KEYS.rotXBack: game.tryRotate("x", -1); break;
-      case KEYS.rotYBack: game.tryRotate("y", -1); break;
-      case KEYS.rotZBack: game.tryRotate("z", -1); break;
-      case KEYS.hardDrop: game.hardDrop(); break;
+      case keys.moveLeft: game.tryMove(-1, 0); break;
+      case keys.moveRight: game.tryMove(1, 0); break;
+      case keys.moveAway: game.tryMove(0, 1); break;
+      case keys.moveToward: game.tryMove(0, -1); break;
+      case keys.rotX: game.tryRotate("x", 1); break;
+      case keys.rotY: game.tryRotate("y", 1); break;
+      case keys.rotZ: game.tryRotate("z", 1); break;
+      case keys.rotXBack: game.tryRotate("x", -1); break;
+      case keys.rotYBack: game.tryRotate("y", -1); break;
+      case keys.rotZBack: game.tryRotate("z", -1); break;
+      case keys.hardDrop: game.hardDrop(); break;
       default: used = false;
     }
     if (used) e.preventDefault();

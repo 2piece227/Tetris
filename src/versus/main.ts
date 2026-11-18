@@ -7,10 +7,19 @@ import { newSeed } from "../game/random";
 import { VERSUS_RULES } from "../game/rules";
 import "../menu/page.css";
 import { Hud, type Tally } from "./hud";
-import { attachKeyboard } from "./keyboard";
+import { attachKeyboard, KEYS_1P, KEYS_2P } from "./keyboard";
 import { Renderer } from "./renderer";
 
 keepOffHeadset();
+
+/**
+ * versus.html?mode=2p: two people on one keyboard instead of one against the
+ * machine. Same wells, camera and rules; only who drives the right-hand well
+ * changes.
+ */
+const TWO_PLAYERS = new URLSearchParams(window.location.search).get("mode") === "2p";
+document.body.classList.toggle("two-players", TWO_PLAYERS);
+if (TWO_PLAYERS) document.title = "2인 대결 · 블럭아웃";
 
 const $ = (id: string): HTMLElement => document.getElementById(id) as HTMLElement;
 
@@ -27,6 +36,7 @@ const feed = new PieceFeed(VERSUS_RULES.tiers, () =>
   players.reduce((best, g) => Math.max(best, g.score), 0)
 );
 const human = new Game(VERSUS_RULES, feed);
+/** The right-hand well: the machine, or the second player in a two-player round. */
 const cpu = new Game(VERSUS_RULES, feed);
 players.push(human, cpu);
 
@@ -62,7 +72,7 @@ function setLevel(l: Level): void {
   level = l;
   ai = new AutoPlayer(LEVELS[l].pace);
   for (const b of levelButtons) b.classList.toggle("on", b.dataset.level === l);
-  hud.setNames("나", `AI · ${LEVELS[l].name}`);
+  hud.setNames(TWO_PLAYERS ? "1P" : "나", TWO_PLAYERS ? "2P" : `AI · ${LEVELS[l].name}`);
   try {
     localStorage.setItem("versus.level", l);
   } catch {
@@ -116,6 +126,8 @@ function resetBoards(): void {
 function countIn(): void {
   if (phase === "count" || phase === "playing") return;
   phase = "count";
+  // Enter is 2P's drop key: a card button left focused would catch it.
+  (document.activeElement as HTMLElement | null)?.blur();
   show("start", false);
   show("result", false);
   resetBoards();
@@ -146,16 +158,27 @@ function endRound(loser: Game): void {
   const won = loser === cpu;
 
   const title = $("resultTitle");
-  title.textContent = won ? "승리!" : "패배";
-  title.className = won ? "win" : "lose";
-  $("resultSub").textContent = won
-    ? `AI(${LEVELS[level].name})가 먼저 꼭대기에 닿았어요.`
-    : "블록이 꼭대기에 닿았어요. 다시 해볼까요?";
-  $("rLayers").textContent = String(human.layers);
-  $("rSent").textContent = String(tally.sent[0]);
-  $("rRecv").textContent = String(tally.received[0]);
   const secs = Math.round((endedAt - startedAt) / 1000);
-  $("rTime").textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  const time = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  if (TWO_PLAYERS) {
+    title.textContent = `${won ? "1P" : "2P"} 승리!`;
+    title.className = "win";
+    $("resultSub").textContent = `${won ? "2P" : "1P"}의 블록이 먼저 꼭대기에 닿았어요 · 대결 시간 ${time}`;
+    const row = (name: string, g: Game, side: 0 | 1): string =>
+      `<tr class="${g === loser ? "" : "winner"}"><th>${name}</th><td>${g.score.toLocaleString("ko-KR")}</td>` +
+      `<td>${g.layers}</td><td>${tally.sent[side]}</td><td>${tally.received[side]}</td></tr>`;
+    $("pvpRows").innerHTML = row("1P", human, 0) + row("2P", cpu, 1);
+  } else {
+    title.textContent = won ? "승리!" : "패배";
+    title.className = won ? "win" : "lose";
+    $("resultSub").textContent = won
+      ? `AI(${LEVELS[level].name})가 먼저 꼭대기에 닿았어요.`
+      : "블록이 꼭대기에 닿았어요. 다시 해볼까요?";
+    $("rLayers").textContent = String(human.layers);
+    $("rSent").textContent = String(tally.sent[0]);
+    $("rRecv").textContent = String(tally.received[0]);
+    $("rTime").textContent = time;
+  }
   show("result", true);
   sfx.gameOver();
 }
@@ -182,11 +205,11 @@ for (const me of players) {
   const other = me === human ? cpu : human;
   me.onChange = draw;
   // The machine's moves stay silent: two sets of blips at once is noise, and
-  // the player should only hear their own hands.
+  // the player should only hear their own hands. Two people each have hands.
   const view = me === human ? renderer.p1 : renderer.p2;
   // Both wells play their turns out, so the opponent's moves read as turns too.
   me.onRotate = (axis, dir, shift) => view.beginRotation(axis, dir, shift);
-  if (me === human) {
+  if (me === human || TWO_PLAYERS) {
     me.onMove = () => sfx.move();
     me.onRotate = (axis, dir, shift) => {
       sfx.rotate();
@@ -195,7 +218,7 @@ for (const me of players) {
     me.onLock = () => sfx.lock();
     me.onRotateBlocked = (cells, pos) => {
       sfx.blocked();
-      renderer.p1.showBlocked(cells, pos);
+      view.showBlocked(cells, pos);
     };
   }
   me.onClear = (n, layers) => {
@@ -216,7 +239,8 @@ for (const me of players) {
   me.onGameOver = () => endRound(me);
 }
 
-attachKeyboard(human, sfx, () => phase === "playing");
+attachKeyboard(human, KEYS_1P, sfx, () => phase === "playing");
+if (TWO_PLAYERS) attachKeyboard(cpu, KEYS_2P, sfx, () => phase === "playing");
 
 // ─── Card keys ──────────────────────────────────────────────────────────────
 // Start on keyUP, not keydown: the keydown that dismisses a card would
@@ -235,7 +259,7 @@ window.addEventListener("keyup", (e) => {
 window.addEventListener("keydown", (e) => {
   // F5 would reload and lose a fullscreen kiosk window.
   if (e.code === "F5") e.preventDefault();
-  if (phase !== "ready") return;
+  if (phase !== "ready" || TWO_PLAYERS) return;
   // Pick the level from the keyboard: arrows step, digits jump.
   const at = LEVEL_ORDER.indexOf(level);
   if (e.code === "ArrowLeft" || e.code === "KeyA") setLevel(LEVEL_ORDER[Math.max(0, at - 1)]);
@@ -251,7 +275,7 @@ $("levelBtn").addEventListener("click", toStartCard);
 renderer.scene.onBeforeRenderObservable.add(() => {
   if (phase !== "playing") return;
   const dt = renderer.engine.getDeltaTime();
-  ai.update(cpu);
+  if (!TWO_PLAYERS) ai.update(cpu);
   for (const g of players) g.tick(dt);
 });
 
