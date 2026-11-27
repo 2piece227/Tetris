@@ -1,0 +1,513 @@
+{
+  "cap": 600,
+  "hand": {
+    "weights": {
+      "cleared": 30,
+      "top": -4,
+      "holes": -12,
+      "bumpiness": -1
+    },
+    "layers": 120,
+    "pieces": 475.17,
+    "survived": 13,
+    "meanHoles": 5.78,
+    "peak": 16.5,
+    "games": [
+      {
+        "seed": 9000000,
+        "layers": 161,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 5.987,
+        "peak": 13
+      },
+      {
+        "seed": 9000001,
+        "layers": 83,
+        "pieces": 357,
+        "survived": false,
+        "meanHoles": 5.126,
+        "peak": 18
+      },
+      {
+        "seed": 9000002,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.762,
+        "peak": 10
+      },
+      {
+        "seed": 9000003,
+        "layers": 151,
+        "pieces": 599,
+        "survived": false,
+        "meanHoles": 4.471,
+        "peak": 18
+      },
+      {
+        "seed": 9000004,
+        "layers": 49,
+        "pieces": 232,
+        "survived": false,
+        "meanHoles": 4.776,
+        "peak": 18
+      },
+      {
+        "seed": 9000005,
+        "layers": 163,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.902,
+        "peak": 13
+      },
+      {
+        "seed": 9000006,
+        "layers": 63,
+        "pieces": 285,
+        "survived": false,
+        "meanHoles": 4.705,
+        "peak": 18
+      },
+      {
+        "seed": 9000007,
+        "layers": 160,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 3.183,
+        "peak": 12
+      },
+      {
+        "seed": 9000008,
+        "layers": 112,
+        "pieces": 461,
+        "survived": false,
+        "meanHoles": 5.416,
+        "peak": 18
+      },
+      {
+        "seed": 9000009,
+        "layers": 153,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 12.405,
+        "peak": 18
+      },
+      {
+        "seed": 9000010,
+        "layers": 164,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.068,
+        "peak": 12
+      },
+      {
+        "seed": 9000011,
+        "layers": 66,
+        "pieces": 295,
+        "survived": false,
+        "meanHoles": 5.895,
+        "peak": 18
+      },
+      {
+        "seed": 9000012,
+        "layers": 132,
+        "pieces": 532,
+        "survived": false,
+        "meanHoles": 4.278,
+        "peak": 18
+      },
+      {
+        "seed": 9000013,
+        "layers": 154,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 13.31,
+        "peak": 18
+      },
+      {
+        "seed": 9000014,
+        "layers": 92,
+        "pieces": 390,
+        "survived": false,
+        "meanHoles": 6.315,
+        "peak": 18
+      },
+      {
+        "seed": 9000015,
+        "layers": 108,
+        "pieces": 444,
+        "survived": false,
+        "meanHoles": 5.712,
+        "peak": 18
+      },
+      {
+        "seed": 9000016,
+        "layers": 77,
+        "pieces": 329,
+        "survived": false,
+        "meanHoles": 2.371,
+        "peak": 18
+      },
+      {
+        "seed": 9000017,
+        "layers": 161,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 5.277,
+        "peak": 16
+      },
+      {
+        "seed": 9000018,
+        "layers": 159,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 5.705,
+        "peak": 18
+      },
+      {
+        "seed": 9000019,
+        "layers": 103,
+        "pieces": 429,
+        "survived": false,
+        "meanHoles": 9.14,
+        "peak": 18
+      },
+      {
+        "seed": 9000020,
+        "layers": 87,
+        "pieces": 372,
+        "survived": false,
+        "meanHoles": 6.035,
+        "peak": 18
+      },
+      {
+        "seed": 9000021,
+        "layers": 164,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 4.25,
+        "peak": 12
+      },
+      {
+        "seed": 9000022,
+        "layers": 116,
+        "pieces": 473,
+        "survived": false,
+        "meanHoles": 6.531,
+        "peak": 18
+      },
+      {
+        "seed": 9000023,
+        "layers": 162,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.678,
+        "peak": 12
+      },
+      {
+        "seed": 9000024,
+        "layers": 152,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 13.855,
+        "peak": 18
+      },
+      {
+        "seed": 9000025,
+        "layers": 114,
+        "pieces": 465,
+        "survived": false,
+        "meanHoles": 6.822,
+        "peak": 18
+      },
+      {
+        "seed": 9000026,
+        "layers": 50,
+        "pieces": 238,
+        "survived": false,
+        "meanHoles": 7.391,
+        "peak": 18
+      },
+      {
+        "seed": 9000027,
+        "layers": 157,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 5.232,
+        "peak": 17
+      },
+      {
+        "seed": 9000028,
+        "layers": 112,
+        "pieces": 459,
+        "survived": false,
+        "meanHoles": 6.946,
+        "peak": 18
+      },
+      {
+        "seed": 9000029,
+        "layers": 10,
+        "pieces": 95,
+        "survived": false,
+        "meanHoles": 2.947,
+        "peak": 18
+      }
+    ]
+  },
+  "learned": {
+    "weights": {
+      "cleared": 30,
+      "top": 3.887,
+      "holes": -45.621,
+      "bumpiness": -4.98
+    },
+    "layers": 160.13,
+    "pieces": 587.23,
+    "survived": 28,
+    "meanHoles": 1.82,
+    "peak": 12.1,
+    "games": [
+      {
+        "seed": 9000000,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.83,
+        "peak": 9
+      },
+      {
+        "seed": 9000001,
+        "layers": 161,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.603,
+        "peak": 12
+      },
+      {
+        "seed": 9000002,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.923,
+        "peak": 10
+      },
+      {
+        "seed": 9000003,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.043,
+        "peak": 11
+      },
+      {
+        "seed": 9000004,
+        "layers": 164,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 3.007,
+        "peak": 16
+      },
+      {
+        "seed": 9000005,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.005,
+        "peak": 9
+      },
+      {
+        "seed": 9000006,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.438,
+        "peak": 9
+      },
+      {
+        "seed": 9000007,
+        "layers": 167,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.875,
+        "peak": 10
+      },
+      {
+        "seed": 9000008,
+        "layers": 162,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.328,
+        "peak": 9
+      },
+      {
+        "seed": 9000009,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.882,
+        "peak": 13
+      },
+      {
+        "seed": 9000010,
+        "layers": 164,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 3.397,
+        "peak": 14
+      },
+      {
+        "seed": 9000011,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.502,
+        "peak": 12
+      },
+      {
+        "seed": 9000012,
+        "layers": 167,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.843,
+        "peak": 14
+      },
+      {
+        "seed": 9000013,
+        "layers": 122,
+        "pieces": 496,
+        "survived": false,
+        "meanHoles": 6.496,
+        "peak": 18
+      },
+      {
+        "seed": 9000014,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.227,
+        "peak": 10
+      },
+      {
+        "seed": 9000015,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.507,
+        "peak": 13
+      },
+      {
+        "seed": 9000016,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.67,
+        "peak": 9
+      },
+      {
+        "seed": 9000017,
+        "layers": 74,
+        "pieces": 321,
+        "survived": false,
+        "meanHoles": 1.162,
+        "peak": 18
+      },
+      {
+        "seed": 9000018,
+        "layers": 164,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 2.612,
+        "peak": 12
+      },
+      {
+        "seed": 9000019,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.825,
+        "peak": 10
+      },
+      {
+        "seed": 9000020,
+        "layers": 162,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.812,
+        "peak": 13
+      },
+      {
+        "seed": 9000021,
+        "layers": 159,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.68,
+        "peak": 12
+      },
+      {
+        "seed": 9000022,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.687,
+        "peak": 14
+      },
+      {
+        "seed": 9000023,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.368,
+        "peak": 12
+      },
+      {
+        "seed": 9000024,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.502,
+        "peak": 10
+      },
+      {
+        "seed": 9000025,
+        "layers": 162,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.168,
+        "peak": 12
+      },
+      {
+        "seed": 9000026,
+        "layers": 165,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 0.905,
+        "peak": 12
+      },
+      {
+        "seed": 9000027,
+        "layers": 166,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.143,
+        "peak": 9
+      },
+      {
+        "seed": 9000028,
+        "layers": 163,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 1.373,
+        "peak": 15
+      },
+      {
+        "seed": 9000029,
+        "layers": 163,
+        "pieces": 600,
+        "survived": true,
+        "meanHoles": 4.777,
+        "peak": 16
+      }
+    ]
+  }
+}

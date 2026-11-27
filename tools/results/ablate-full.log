@@ -1,0 +1,16 @@
+full gen 0: best 156.9 / mean-w 142.6 | {"cleared":30,"top":-5.196,"holes":-16.668,"bumpiness":-2.249} | 32s
+full gen 1: best 160.3 / mean-w 149.3 | {"cleared":30,"top":-6.731,"holes":-31.396,"bumpiness":-3.553} | 83s
+full gen 2: best 164.7 / mean-w 156 | {"cleared":30,"top":-1.791,"holes":-39.95,"bumpiness":-6.158} | 186s
+full gen 3: best 162.7 / mean-w 154.9 | {"cleared":30,"top":-1.233,"holes":-30.848,"bumpiness":-3.282} | 274s
+full gen 4: best 162.6 / mean-w 164.7 | {"cleared":30,"top":-0.185,"holes":-33.531,"bumpiness":-4.809} | 353s
+full gen 5: best 163.5 / mean-w 139.6 | {"cleared":30,"top":1.699,"holes":-29.743,"bumpiness":-4.1} | 438s
+full gen 6: best 164.2 / mean-w 162.8 | {"cleared":30,"top":3.81,"holes":-25.063,"bumpiness":-3.466} | 536s
+full gen 7: best 164.7 / mean-w 163.1 | {"cleared":30,"top":5.411,"holes":-26.837,"bumpiness":-3.386} | 789s
+full gen 8: best 164.5 / mean-w 148.2 | {"cleared":30,"top":4.193,"holes":-27.25,"bumpiness":-3.308} | 865s
+full gen 9: best 163 / mean-w 163.3 | {"cleared":30,"top":6.312,"holes":-30.966,"bumpiness":-4.188} | 1065s
+full gen 10: best 163.7 / mean-w 163.9 | {"cleared":30,"top":6.233,"holes":-35.425,"bumpiness":-4.828} | 1271s
+full gen 11: best 165.6 / mean-w 164.3 | {"cleared":30,"top":3.21,"holes":-38.954,"bumpiness":-4.552} | 1575s
+full gen 12: best 163.7 / mean-w 163.1 | {"cleared":30,"top":2.732,"holes":-36.658,"bumpiness":-4.399} | 1797s
+full gen 13: best 164.5 / mean-w 164.5 | {"cleared":30,"top":3.658,"holes":-40.551,"bumpiness":-4.907} | 1992s
+full gen 14: best 164.5 / mean-w 164.8 | {"cleared":30,"top":5.162,"holes":-42.314,"bumpiness":-5.274} | 2100s
+full gen 15: best 164.8 / mean-w 156.6 | {"cleared":30,"top":5.692,"holes":-43.978,"bumpiness":-5.536} | 2443s
