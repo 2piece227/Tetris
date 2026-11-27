@@ -34,12 +34,12 @@ export const KEYS_1P: Binding = {
   moveRight: "KeyD",
   moveAway: "KeyW",
   moveToward: "KeyS",
-  rotX: "KeyQ",
-  rotY: "KeyE",
-  rotZ: "KeyR",
-  rotXBack: "KeyZ",
-  rotYBack: "KeyC",
-  rotZBack: "KeyV",
+  rotX: "KeyJ",
+  rotY: "KeyK",
+  rotZ: "KeyL",
+  rotXBack: "KeyI",
+  rotYBack: "KeyO",
+  rotZBack: "KeyP",
   hardDrop: "Space",
 };
 
