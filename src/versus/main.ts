@@ -7,7 +7,7 @@ import { newSeed } from "../game/random";
 import { VERSUS_RULES } from "../game/rules";
 import "../menu/page.css";
 import { Hud, type Tally } from "./hud";
-import { attachKeyboard, KEYS_1P, KEYS_2P } from "./keyboard";
+import { attachKeyboard, KEYS_1P, KEYS_2P, KEYS_SOLO } from "./keyboard";
 import { Renderer } from "./renderer";
 
 keepOffHeadset();
@@ -239,7 +239,7 @@ for (const me of players) {
   me.onGameOver = () => endRound(me);
 }
 
-attachKeyboard(human, KEYS_1P, sfx, () => phase === "playing");
+attachKeyboard(human, TWO_PLAYERS ? KEYS_1P : KEYS_SOLO, sfx, () => phase === "playing");
 if (TWO_PLAYERS) attachKeyboard(cpu, KEYS_2P, sfx, () => phase === "playing");
 
 // ─── Card keys ──────────────────────────────────────────────────────────────
