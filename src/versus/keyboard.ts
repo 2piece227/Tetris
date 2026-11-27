@@ -29,7 +29,8 @@ interface Binding {
   hardDrop: string;
 }
 
-export const KEYS_1P: Binding = {
+/** One player against the machine: the whole keyboard is theirs. */
+export const KEYS_SOLO: Binding = {
   moveLeft: "KeyA",
   moveRight: "KeyD",
   moveAway: "KeyW",
@@ -40,6 +41,25 @@ export const KEYS_1P: Binding = {
   rotXBack: "KeyI",
   rotYBack: "KeyO",
   rotZBack: "KeyP",
+  hardDrop: "Space",
+};
+
+/**
+ * Left player of a two-player round. Rotation stays on the left half of the
+ * keyboard (QER / ZCV) so it never shares a key with the right player's
+ * UIO / JKL.
+ */
+export const KEYS_1P: Binding = {
+  moveLeft: "KeyA",
+  moveRight: "KeyD",
+  moveAway: "KeyW",
+  moveToward: "KeyS",
+  rotX: "KeyQ",
+  rotY: "KeyE",
+  rotZ: "KeyR",
+  rotXBack: "KeyZ",
+  rotYBack: "KeyC",
+  rotZBack: "KeyV",
   hardDrop: "Space",
 };
 
